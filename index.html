@@ -7,9 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Mountains+of+Christmas:wght@700&display=swap" rel="stylesheet">
-  <!-- PeerJS (WebRTC directo entre navegadores) -->
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
-  <!-- Confeti -->
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
   <style>
     :root {
@@ -124,7 +122,16 @@
     .btn:disabled { opacity: 0.6; cursor: not-allowed; }
     .btn-gold { background: linear-gradient(135deg, #f8b229, #d99214); color: #431f00; }
     .btn-red { background: linear-gradient(135deg, #e62244, #a3142c); color: #fff; margin-top: 10px; }
-    
+    .btn-reconnect {
+      background: rgba(248, 178, 41, 0.2);
+      border: 2px dashed var(--xmas-gold);
+      color: #fff;
+      margin-bottom: 15px;
+      font-size: 0.95rem;
+      padding: 12px;
+      border-radius: 14px;
+    }
+
     .avatars {
       display: grid;
       grid-template-columns: repeat(5, 1fr);
@@ -207,6 +214,27 @@
       user-select: none;
     }
     .star.active { color: var(--xmas-gold); }
+    
+    .vote-tracker-box {
+      background: rgba(0,0,0,0.35);
+      border: 1px solid rgba(248, 178, 41, 0.5);
+      border-radius: 14px;
+      padding: 12px;
+      margin-top: 15px;
+      text-align: left;
+    }
+    .vote-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 0;
+      font-size: 0.9rem;
+      border-bottom: 1px dashed rgba(255,255,255,0.1);
+    }
+    .vote-item:last-child { border-bottom: none; }
+    .status-voted { color: #55efc4; font-weight: 600; }
+    .status-waiting { color: #ffeaa7; opacity: 0.8; }
+
     .podium-item {
       display: flex;
       justify-content: space-between;
@@ -222,7 +250,6 @@
 <body>
   <canvas id="snow-canvas"></canvas>
 
-  <!-- BOTÓN DE MÚSICA -->
   <button id="music-toggle" class="audio-toggle-btn" onclick="toggleMusic()" title="Activar/Silenciar música">🎵</button>
 
   <div class="container">
@@ -234,6 +261,12 @@
     <!-- PANTALLA 1: ACCESO -->
     <div id="screen-auth" class="card">
       <h2 style="margin-bottom: 12px; text-align: center;">¡Bienvenidos! 🎁</h2>
+
+      <div id="reconnect-banner" class="hidden">
+        <button class="btn btn-reconnect" onclick="reconnectPreviousSession()">
+          🔄 Volver a entrar a la Sala <span id="saved-room-code"></span> (<span id="saved-player-name"></span>)
+        </button>
+      </div>
       
       <p style="font-size: 0.85rem; margin-bottom: 8px; text-align: center; opacity: 0.9;">Elige tu icono festivo:</p>
       <div class="avatars">
@@ -360,13 +393,28 @@
         <button id="send-vote-btn" class="btn btn-gold" onclick="sendVote()">⭐ Enviar Mi Puntuación</button>
       </div>
 
-      <div id="vote-feedback" class="hidden" style="text-align:center; padding: 15px 0;">
+      <div id="vote-feedback" class="hidden" style="text-align:center; padding: 12px 0;">
         <h4>¡Voto Enviado! 🎄</h4>
-        <p style="font-size: 0.9rem; margin-top: 6px; opacity:0.8;">Esperando a que el anfitrión pase al siguiente...</p>
+        <p style="font-size: 0.9rem; margin-top: 4px; opacity:0.8;">Esperando a que el anfitrión pase al siguiente...</p>
       </div>
 
-      <div id="host-next-wrap" class="hidden" style="margin-top: 15px;">
-        <button class="btn btn-red" onclick="hostNextTurn()">Siguiente Regalo ⏭️</button>
+      <div id="opener-notice" class="hidden" style="text-align:center; padding: 15px 0;">
+        <h4>¡Es tu turno de abrir el regalo! 🎁✨</h4>
+        <p style="font-size: 0.9rem; margin-top: 4px; opacity:0.85;">Los demás familiares te están valorando.</p>
+      </div>
+
+      <div id="host-vote-panel" class="hidden">
+        <div class="vote-tracker-box">
+          <div style="font-weight:700; color:var(--xmas-gold); margin-bottom: 6px; font-size:0.95rem; display:flex; justify-content:space-between;">
+            <span>Votos en directo:</span>
+            <span id="vote-count-ratio">0 / 0</span>
+          </div>
+          <div id="vote-tracker-list"></div>
+        </div>
+
+        <div id="host-next-wrap" style="margin-top: 15px;">
+          <button class="btn btn-red" onclick="hostNextTurn()">Siguiente Regalo ⏭️</button>
+        </div>
       </div>
     </div>
 
@@ -386,28 +434,23 @@
   </div>
 
   <script>
-    // --- MOTOR DE AUDIO NAVIDEÑO (WEB AUDIO API) ---
+    // --- MOTOR DE AUDIO ---
     let audioCtx = null;
     let isMusicPlaying = false;
     let musicInterval = null;
 
     function initAudio() {
-      if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      }
-      if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-      }
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
     }
 
-    // Tintineo de campanita para clics generales
     function playClickBell() {
       initAudio();
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(1567.98, audioCtx.currentTime); // Sol6
-      osc.frequency.exponentialRampToValueAtTime(2093.00, audioCtx.currentTime + 0.08); // Do7
+      osc.frequency.setValueAtTime(1567.98, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(2093.00, audioCtx.currentTime + 0.08);
       gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
       osc.connect(gain);
@@ -416,36 +459,28 @@
       osc.stop(audioCtx.currentTime + 0.25);
     }
 
-    // Campanita al pulsar estrellas (frecuencia ascendente de 1 a 5)
     function playStarBell(starIndex) {
       initAudio();
-      const baseFreqs = [523.25, 659.25, 783.99, 1046.50, 1318.51]; // Do, Mi, Sol, Do, Mi
+      const baseFreqs = [523.25, 659.25, 783.99, 1046.50, 1318.51];
       const freq = baseFreqs[starIndex - 1] || 1046.50;
-
       const osc = audioCtx.createOscillator();
       const oscHarmonic = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
-
       osc.type = 'sine';
       osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-
       oscHarmonic.type = 'triangle';
       oscHarmonic.frequency.setValueAtTime(freq * 2, audioCtx.currentTime);
-
       gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.45);
-
       osc.connect(gain);
       oscHarmonic.connect(gain);
       gain.connect(audioCtx.destination);
-
       osc.start();
       oscHarmonic.start();
       osc.stop(audioCtx.currentTime + 0.45);
       oscHarmonic.stop(audioCtx.currentTime + 0.45);
     }
 
-    // Tictac de la ruleta
     function playWheelTick() {
       if (!audioCtx) return;
       const osc = audioCtx.createOscillator();
@@ -460,11 +495,9 @@
       osc.stop(audioCtx.currentTime + 0.04);
     }
 
-    // Fanfarria triunfal festiva
     function playFanfare() {
       initAudio();
-      const notes = [523.25, 659.25, 783.99, 1046.50]; // Do, Mi, Sol, Do agudo
-      notes.forEach((freq, i) => {
+      [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
         osc.type = 'sine';
@@ -478,7 +511,6 @@
       });
     }
 
-    // Música de fondo polifónica navideña (Jingle Bells estilo caja de música)
     const melody = [
       { note: 659.25, dur: 0.25 }, { note: 659.25, dur: 0.25 }, { note: 659.25, dur: 0.5 },
       { note: 659.25, dur: 0.25 }, { note: 659.25, dur: 0.25 }, { note: 659.25, dur: 0.5 },
@@ -496,19 +528,14 @@
       const current = melody[noteIdx];
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
-
       osc.type = 'sine';
       osc.frequency.setValueAtTime(current.note, audioCtx.currentTime);
-
       gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + current.dur * 1.1);
-
       osc.connect(gain);
       gain.connect(audioCtx.destination);
-
       osc.start();
       osc.stop(audioCtx.currentTime + current.dur * 1.1);
-
       noteIdx = (noteIdx + 1) % melody.length;
       musicInterval = setTimeout(playNextMelodyNote, current.dur * 700);
     }
@@ -527,17 +554,6 @@
         clearTimeout(musicInterval);
       }
     }
-
-    // Efectos de sonido globales a todos los botones
-    document.addEventListener('DOMContentLoaded', () => {
-      document.querySelectorAll('button').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          if (btn.id !== 'music-toggle') {
-            playClickBell();
-          }
-        });
-      });
-    });
 
     // --- EFECTO NIEVE ---
     const snowCanvas = document.getElementById('snow-canvas');
@@ -585,10 +601,60 @@
       remaining: [],
       currentOpener: null,
       scores: {},
+      votedInCurrentRound: [],
       step: 'lobby'
     };
 
     let localRatings = { cat1: 5, cat2: 5, cat3: 5, cat4: 5 };
+
+    // --- CONTROL DE PERSISTENCIA Y RECONEXIÓN ---
+    function saveSession() {
+      localStorage.setItem('xmas_session', JSON.stringify({
+        roomCode,
+        myName,
+        myAvatar,
+        isHost
+      }));
+      if (isHost) {
+        localStorage.setItem('xmas_host_state_' + roomCode, JSON.stringify(gameState));
+      }
+    }
+
+    function checkPreviousSession() {
+      try {
+        const raw = localStorage.getItem('xmas_session');
+        if (!raw) return;
+        const session = JSON.parse(raw);
+        if (session && session.roomCode && session.myName) {
+          document.getElementById('saved-room-code').innerText = session.roomCode;
+          document.getElementById('saved-player-name').innerText = session.myName;
+          document.getElementById('reconnect-banner').classList.remove('hidden');
+        }
+      } catch(e) {}
+    }
+
+    function reconnectPreviousSession() {
+      playClickBell();
+      const raw = localStorage.getItem('xmas_session');
+      if (!raw) return;
+      const session = JSON.parse(raw);
+      myName = session.myName;
+      myAvatar = session.myAvatar || '🎅';
+      roomCode = session.roomCode;
+      isHost = session.isHost;
+
+      if (isHost) {
+        const savedState = localStorage.getItem('xmas_host_state_' + roomCode);
+        if (savedState) {
+          try { gameState = JSON.parse(savedState); } catch(e){}
+        }
+        createRoomWithCode(roomCode);
+      } else {
+        document.getElementById('player-name').value = myName;
+        document.getElementById('room-input').value = roomCode;
+        joinRoom();
+      }
+    }
 
     function setAvatar(av) {
       playClickBell();
@@ -603,31 +669,44 @@
       playClickBell();
       const name = document.getElementById('player-name').value.trim();
       if (!name) return alert("Escribe tu nombre primero");
-      
-      const btn = document.getElementById('btn-create');
-      btn.disabled = true;
-      btn.innerText = "Creando sala...";
 
       myName = name;
       isHost = true;
       roomCode = Math.floor(1000 + Math.random() * 9000).toString();
 
-      const peerId = 'ami-invis-' + roomCode;
+      gameState.players = [{ name: myName, avatar: myAvatar }];
+      gameState.remaining = [myName];
+      gameState.scores[myName] = { cat1: [], cat2: [], cat3: [], cat4: [] };
+      gameState.votedInCurrentRound = [];
+
+      createRoomWithCode(roomCode);
+    }
+
+    function createRoomWithCode(code) {
+      const btn = document.getElementById('btn-create');
+      btn.disabled = true;
+      btn.innerText = "Conectando sala...";
+
+      saveSession();
+      const peerId = 'ami-invis-' + code;
       peer = new Peer(peerId);
 
       peer.on('open', () => {
-        gameState.players = [{ name: myName, avatar: myAvatar }];
-        gameState.remaining = [myName];
-        gameState.scores[myName] = { cat1: [], cat2: [], cat3: [], cat4: [] };
-        
         setupGameView();
         renderState();
       });
 
       peer.on('connection', (conn) => {
+        // Filtrar sockets desconectados
+        clientConns = clientConns.filter(c => c.open);
         clientConns.push(conn);
+
+        conn.on('open', () => {
+          // Despacho inmediato del estado completo al reconectado
+          conn.send({ type: 'SYNC', data: gameState });
+        });
         conn.on('data', (msg) => {
-          handleHostIncoming(msg);
+          handleHostIncoming(msg, conn);
         });
       });
 
@@ -635,9 +714,9 @@
         btn.disabled = false;
         btn.innerText = "👑 Crear Nueva Sala";
         if (err.type === 'unavailable-id') {
-          createRoom();
+          setTimeout(() => peer.reconnect(), 1000);
         } else {
-          alert("Error de conexión: " + err.message);
+          alert("Error al conectar: " + err.message);
         }
       });
     }
@@ -657,14 +736,16 @@
       myName = name;
       isHost = false;
       roomCode = code;
+      saveSession();
 
       peer = new Peer();
 
       peer.on('open', () => {
-        hostConn = peer.connect('ami-invis-' + roomCode);
+        hostConn = peer.connect('ami-invis-' + roomCode, { reliable: true });
 
         hostConn.on('open', () => {
           setupGameView();
+          // Notificar al anfitrión que estamos de vuelta
           hostConn.send({
             type: 'JOIN',
             data: { name: myName, avatar: myAvatar }
@@ -698,35 +779,47 @@
       if (isHost) {
         document.getElementById('host-start-btn-wrap').classList.remove('hidden');
         document.getElementById('host-spin-btn-wrap').classList.remove('hidden');
-        document.getElementById('host-next-wrap').classList.remove('hidden');
+        document.getElementById('host-vote-panel').classList.remove('hidden');
         document.getElementById('guest-waiting-msg').classList.add('hidden');
         document.getElementById('guest-spin-msg').classList.add('hidden');
       }
     }
 
-    // --- MENSAJERÍA ---
+    // --- MENSAJERÍA Y SINCRONIZACIÓN ---
     function broadcast(type, data) {
+      clientConns = clientConns.filter(c => c.open);
       clientConns.forEach(c => {
-        if (c.open) c.send({ type, data });
+        c.send({ type, data });
       });
     }
 
-    function handleHostIncoming(msg) {
+    function handleHostIncoming(msg, conn) {
       if (msg.type === 'JOIN') {
-        if (!gameState.players.some(p => p.name === msg.data.name)) {
+        const existing = gameState.players.find(p => p.name === msg.data.name);
+        if (!existing) {
           gameState.players.push(msg.data);
-          gameState.remaining.push(msg.data.name);
+          if (gameState.step === 'lobby') {
+            gameState.remaining.push(msg.data.name);
+          }
           gameState.scores[msg.data.name] = { cat1: [], cat2: [], cat3: [], cat4: [] };
-          broadcast('SYNC', gameState);
-          renderState();
+        } else {
+          existing.avatar = msg.data.avatar;
         }
+        saveSession();
+        // Respondemos a todos y en especial al que acaba de unirse
+        broadcast('SYNC', gameState);
+        renderState();
       } else if (msg.type === 'VOTE') {
         const target = gameState.currentOpener.name;
-        if (gameState.scores[target]) {
+        if (gameState.scores[target] && !gameState.votedInCurrentRound.includes(msg.voter)) {
           gameState.scores[target].cat1.push(msg.data.cat1);
           gameState.scores[target].cat2.push(msg.data.cat2);
           gameState.scores[target].cat3.push(msg.data.cat3);
           gameState.scores[target].cat4.push(msg.data.cat4);
+          gameState.votedInCurrentRound.push(msg.voter);
+          saveSession();
+          broadcast('SYNC', gameState);
+          renderState();
         }
       }
     }
@@ -734,23 +827,27 @@
     function handleClientIncoming(msg) {
       if (msg.type === 'SYNC') {
         gameState = msg.data;
+        // Al recibir SYNC, renderState() se encarga de cambiar la pantalla a la que toque
         renderState();
       } else if (msg.type === 'SPIN') {
         runWheelAnimation(msg.data.winnerIndex, msg.data.rotation);
       }
     }
 
-    // --- RENDERIZADO VISUAL ---
+    // --- CONTROL DE PANTALLA ACTIVA Y RENDER ---
     function renderState() {
+      // 1. Asignar lista de lobby
       document.getElementById('lobby-list').innerHTML = gameState.players.map(p => 
         `<div class="player-pill">${p.avatar} ${p.name}</div>`
       ).join('');
 
+      // 2. Transición obligatoria a la pantalla que dicte gameState.step
       document.getElementById('screen-lobby').classList.toggle('hidden', gameState.step !== 'lobby');
       document.getElementById('screen-roulette').classList.toggle('hidden', gameState.step !== 'roulette');
       document.getElementById('screen-vote').classList.toggle('hidden', gameState.step !== 'voting');
       document.getElementById('screen-results').classList.toggle('hidden', gameState.step !== 'results');
 
+      // 3. Comportamientos específicos por pantalla
       if (gameState.step === 'roulette') {
         drawWheel();
       }
@@ -758,6 +855,32 @@
       if (gameState.step === 'voting' && gameState.currentOpener) {
         document.getElementById('voted-name').innerText = gameState.currentOpener.name;
         document.getElementById('voted-avatar').innerText = gameState.currentOpener.avatar;
+
+        const isMeOpener = (myName === gameState.currentOpener.name);
+        const alreadyVoted = gameState.votedInCurrentRound.includes(myName);
+
+        // Si soy quien abre el regalo
+        if (isMeOpener) {
+          document.getElementById('vote-form').classList.add('hidden');
+          document.getElementById('vote-feedback').classList.add('hidden');
+          document.getElementById('opener-notice').classList.remove('hidden');
+        } 
+        // Si ya voté antes de cerrar o durante la ronda
+        else if (alreadyVoted) {
+          document.getElementById('vote-form').classList.add('hidden');
+          document.getElementById('vote-feedback').classList.remove('hidden');
+          document.getElementById('opener-notice').classList.add('hidden');
+        } 
+        // Si aún no he votado
+        else {
+          document.getElementById('vote-form').classList.remove('hidden');
+          document.getElementById('vote-feedback').classList.add('hidden');
+          document.getElementById('opener-notice').classList.add('hidden');
+        }
+
+        if (isHost) {
+          renderVoteTracker();
+        }
       }
 
       if (gameState.step === 'results') {
@@ -765,9 +888,32 @@
       }
     }
 
+    function renderVoteTracker() {
+      const votersList = document.getElementById('vote-tracker-list');
+      const openerName = gameState.currentOpener.name;
+      const eligibleVoters = gameState.players.filter(p => p.name !== openerName);
+      const totalEligible = eligibleVoters.length;
+      const countVoted = gameState.votedInCurrentRound.length;
+
+      document.getElementById('vote-count-ratio').innerText = `${countVoted} / ${totalEligible}`;
+
+      votersList.innerHTML = eligibleVoters.map(p => {
+        const hasVoted = gameState.votedInCurrentRound.includes(p.name);
+        return `
+          <div class="vote-item">
+            <span>${p.avatar} ${p.name}</span>
+            <span class="${hasVoted ? 'status-voted' : 'status-waiting'}">
+              ${hasVoted ? '✅ Ha votado' : '⏳ Esperando...'}
+            </span>
+          </div>
+        `;
+      }).join('');
+    }
+
     function hostStartGame() {
       playClickBell();
       gameState.step = 'roulette';
+      saveSession();
       broadcast('SYNC', gameState);
       renderState();
     }
@@ -816,7 +962,6 @@
       const wheel = document.getElementById('wheel-canvas');
       wheel.style.transform = `rotate(${rotation}deg)`;
 
-      // Sonido de tictac acelerado mientras gira
       let ticks = 0;
       const tickInterval = setInterval(() => {
         playWheelTick();
@@ -834,6 +979,9 @@
         if (isHost) {
           gameState.currentOpener = winnerObj;
           gameState.remaining = gameState.remaining.filter(n => n !== winnerName);
+          gameState.votedInCurrentRound = [];
+          saveSession();
+
           setTimeout(() => {
             gameState.step = 'voting';
             wheel.style.transition = 'none';
@@ -843,8 +991,6 @@
             renderState();
           }, 2000);
         }
-        document.getElementById('vote-form').classList.remove('hidden');
-        document.getElementById('vote-feedback').classList.add('hidden');
         resetStars();
       }, 4200);
     }
@@ -867,12 +1013,18 @@
       playClickBell();
       if (isHost) {
         const target = gameState.currentOpener.name;
-        gameState.scores[target].cat1.push(localRatings.cat1);
-        gameState.scores[target].cat2.push(localRatings.cat2);
-        gameState.scores[target].cat3.push(localRatings.cat3);
-        gameState.scores[target].cat4.push(localRatings.cat4);
+        if (!gameState.votedInCurrentRound.includes(myName)) {
+          gameState.scores[target].cat1.push(localRatings.cat1);
+          gameState.scores[target].cat2.push(localRatings.cat2);
+          gameState.scores[target].cat3.push(localRatings.cat3);
+          gameState.scores[target].cat4.push(localRatings.cat4);
+          gameState.votedInCurrentRound.push(myName);
+          saveSession();
+          broadcast('SYNC', gameState);
+          renderState();
+        }
       } else if (hostConn) {
-        hostConn.send({ type: 'VOTE', data: localRatings });
+        hostConn.send({ type: 'VOTE', data: localRatings, voter: myName });
       }
       document.getElementById('vote-form').classList.add('hidden');
       document.getElementById('vote-feedback').classList.remove('hidden');
@@ -885,6 +1037,7 @@
       } else {
         gameState.step = 'results';
       }
+      saveSession();
       broadcast('SYNC', gameState);
       renderState();
     }
@@ -926,6 +1079,8 @@
       txt += `\n¡Felices Fiestas a todos! 🎅✨`;
       window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(txt)}`, '_blank');
     }
+
+    checkPreviousSession();
   </script>
 </body>
 </html>
