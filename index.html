@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Mountains+of+Christmas:wght@700&display=swap" rel="stylesheet">
-  <!-- PeerJS (WebRTC directo entre navegadores, puerto 443 estándar) -->
+  <!-- PeerJS (WebRTC directo entre navegadores) -->
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <!-- Confeti -->
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
@@ -17,7 +17,7 @@
       --xmas-dark-red: #7a0c1e;
       --xmas-green: #165b33;
       --xmas-gold: #f8b229;
-      --card-bg: rgba(22, 91, 51, 0.85);
+      --card-bg: rgba(22, 91, 51, 0.88);
     }
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     body {
@@ -45,6 +45,24 @@
       display: flex;
       flex-direction: column;
       align-items: center;
+    }
+    .audio-toggle-btn {
+      position: fixed;
+      top: 12px;
+      right: 12px;
+      z-index: 99;
+      background: rgba(0,0,0,0.6);
+      border: 2px solid var(--xmas-gold);
+      color: #fff;
+      border-radius: 50%;
+      width: 42px;
+      height: 42px;
+      font-size: 1.2rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.4);
     }
     header { text-align: center; margin-bottom: 16px; }
     h1 {
@@ -106,24 +124,31 @@
     .btn:disabled { opacity: 0.6; cursor: not-allowed; }
     .btn-gold { background: linear-gradient(135deg, #f8b229, #d99214); color: #431f00; }
     .btn-red { background: linear-gradient(135deg, #e62244, #a3142c); color: #fff; margin-top: 10px; }
+    
     .avatars {
-      display: flex;
-      justify-content: center;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
       gap: 8px;
       margin-bottom: 16px;
     }
     .avatar-btn {
-      font-size: 1.8rem;
+      font-size: 1.7rem;
       background: rgba(255,255,255,0.15);
       border: 2px solid transparent;
-      border-radius: 14px;
-      padding: 4px 8px;
+      border-radius: 12px;
+      padding: 6px 0;
       cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.15s, border-color 0.15s, background 0.15s;
     }
+    .avatar-btn:active { transform: scale(0.9); }
     .avatar-btn.selected {
       border-color: var(--xmas-gold);
-      background: rgba(248, 178, 41, 0.3);
+      background: rgba(248, 178, 41, 0.35);
       transform: scale(1.1);
+      box-shadow: 0 0 10px rgba(248, 178, 41, 0.5);
     }
     .player-pill {
       display: inline-flex;
@@ -197,22 +222,36 @@
 <body>
   <canvas id="snow-canvas"></canvas>
 
+  <!-- BOTÓN DE MÚSICA -->
+  <button id="music-toggle" class="audio-toggle-btn" onclick="toggleMusic()" title="Activar/Silenciar música">🎵</button>
+
   <div class="container">
     <header>
       <h1>Amigo Invisible</h1>
       <div id="room-badge" class="badge-room hidden">Sala: <strong id="room-code-display">---</strong></div>
     </header>
 
-    <!-- PANTALLA 1: ACCESO / CREACIÓN -->
+    <!-- PANTALLA 1: ACCESO -->
     <div id="screen-auth" class="card">
       <h2 style="margin-bottom: 12px; text-align: center;">¡Bienvenidos! 🎁</h2>
       
+      <p style="font-size: 0.85rem; margin-bottom: 8px; text-align: center; opacity: 0.9;">Elige tu icono festivo:</p>
       <div class="avatars">
         <button class="avatar-btn selected" onclick="setAvatar('🎅')">🎅</button>
         <button class="avatar-btn" onclick="setAvatar('🤶')">🤶</button>
         <button class="avatar-btn" onclick="setAvatar('🦌')">🦌</button>
         <button class="avatar-btn" onclick="setAvatar('⛄')">⛄</button>
         <button class="avatar-btn" onclick="setAvatar('🧝')">🧝</button>
+        <button class="avatar-btn" onclick="setAvatar('🎄')">🎄</button>
+        <button class="avatar-btn" onclick="setAvatar('🎁')">🎁</button>
+        <button class="avatar-btn" onclick="setAvatar('🔔')">🔔</button>
+        <button class="avatar-btn" onclick="setAvatar('⭐')">⭐</button>
+        <button class="avatar-btn" onclick="setAvatar('🍪')">🍪</button>
+        <button class="avatar-btn" onclick="setAvatar('🕯️')">🕯️</button>
+        <button class="avatar-btn" onclick="setAvatar('❄️')">❄️</button>
+        <button class="avatar-btn" onclick="setAvatar('🧦')">🧦</button>
+        <button class="avatar-btn" onclick="setAvatar('🥂')">🥂</button>
+        <button class="avatar-btn" onclick="setAvatar('👑')">👑</button>
       </div>
 
       <input type="text" id="player-name" placeholder="Tu nombre" maxlength="15" autocomplete="off">
@@ -347,6 +386,159 @@
   </div>
 
   <script>
+    // --- MOTOR DE AUDIO NAVIDEÑO (WEB AUDIO API) ---
+    let audioCtx = null;
+    let isMusicPlaying = false;
+    let musicInterval = null;
+
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    // Tintineo de campanita para clics generales
+    function playClickBell() {
+      initAudio();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(1567.98, audioCtx.currentTime); // Sol6
+      osc.frequency.exponentialRampToValueAtTime(2093.00, audioCtx.currentTime + 0.08); // Do7
+      gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.25);
+    }
+
+    // Campanita al pulsar estrellas (frecuencia ascendente de 1 a 5)
+    function playStarBell(starIndex) {
+      initAudio();
+      const baseFreqs = [523.25, 659.25, 783.99, 1046.50, 1318.51]; // Do, Mi, Sol, Do, Mi
+      const freq = baseFreqs[starIndex - 1] || 1046.50;
+
+      const osc = audioCtx.createOscillator();
+      const oscHarmonic = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+
+      oscHarmonic.type = 'triangle';
+      oscHarmonic.frequency.setValueAtTime(freq * 2, audioCtx.currentTime);
+
+      gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.45);
+
+      osc.connect(gain);
+      oscHarmonic.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      osc.start();
+      oscHarmonic.start();
+      osc.stop(audioCtx.currentTime + 0.45);
+      oscHarmonic.stop(audioCtx.currentTime + 0.45);
+    }
+
+    // Tictac de la ruleta
+    function playWheelTick() {
+      if (!audioCtx) return;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(900, audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.04);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.04);
+    }
+
+    // Fanfarria triunfal festiva
+    function playFanfare() {
+      initAudio();
+      const notes = [523.25, 659.25, 783.99, 1046.50]; // Do, Mi, Sol, Do agudo
+      notes.forEach((freq, i) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime + i * 0.12);
+        gain.gain.setValueAtTime(0.2, audioCtx.currentTime + i * 0.12);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + i * 0.12 + 0.6);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(audioCtx.currentTime + i * 0.12);
+        osc.stop(audioCtx.currentTime + i * 0.12 + 0.6);
+      });
+    }
+
+    // Música de fondo polifónica navideña (Jingle Bells estilo caja de música)
+    const melody = [
+      { note: 659.25, dur: 0.25 }, { note: 659.25, dur: 0.25 }, { note: 659.25, dur: 0.5 },
+      { note: 659.25, dur: 0.25 }, { note: 659.25, dur: 0.25 }, { note: 659.25, dur: 0.5 },
+      { note: 659.25, dur: 0.25 }, { note: 783.99, dur: 0.25 }, { note: 523.25, dur: 0.35 }, { note: 587.33, dur: 0.15 },
+      { note: 659.25, dur: 0.9 },
+      { note: 698.46, dur: 0.25 }, { note: 698.46, dur: 0.25 }, { note: 698.46, dur: 0.35 }, { note: 698.46, dur: 0.15 },
+      { note: 698.46, dur: 0.25 }, { note: 659.25, dur: 0.25 }, { note: 659.25, dur: 0.25 }, { note: 659.25, dur: 0.25 },
+      { note: 783.99, dur: 0.25 }, { note: 783.99, dur: 0.25 }, { note: 698.46, dur: 0.25 }, { note: 587.33, dur: 0.25 },
+      { note: 523.25, dur: 0.9 }
+    ];
+
+    let noteIdx = 0;
+    function playNextMelodyNote() {
+      if (!isMusicPlaying) return;
+      const current = melody[noteIdx];
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(current.note, audioCtx.currentTime);
+
+      gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + current.dur * 1.1);
+
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      osc.start();
+      osc.stop(audioCtx.currentTime + current.dur * 1.1);
+
+      noteIdx = (noteIdx + 1) % melody.length;
+      musicInterval = setTimeout(playNextMelodyNote, current.dur * 700);
+    }
+
+    function toggleMusic() {
+      initAudio();
+      isMusicPlaying = !isMusicPlaying;
+      const btn = document.getElementById('music-toggle');
+      if (isMusicPlaying) {
+        btn.innerText = '🔊';
+        btn.style.borderColor = '#165b33';
+        playNextMelodyNote();
+      } else {
+        btn.innerText = '🎵';
+        btn.style.borderColor = 'var(--xmas-gold)';
+        clearTimeout(musicInterval);
+      }
+    }
+
+    // Efectos de sonido globales a todos los botones
+    document.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          if (btn.id !== 'music-toggle') {
+            playClickBell();
+          }
+        });
+      });
+    });
+
     // --- EFECTO NIEVE ---
     const snowCanvas = document.getElementById('snow-canvas');
     const sCtx = snowCanvas.getContext('2d');
@@ -399,14 +591,16 @@
     let localRatings = { cat1: 5, cat2: 5, cat3: 5, cat4: 5 };
 
     function setAvatar(av) {
+      playClickBell();
       myAvatar = av;
       document.querySelectorAll('.avatar-btn').forEach(b => {
-        b.classList.toggle('selected', b.innerText === av);
+        b.classList.toggle('selected', b.innerText.trim() === av);
       });
     }
 
     // --- CREAR SALA (ANFITRIÓN) ---
     function createRoom() {
+      playClickBell();
       const name = document.getElementById('player-name').value.trim();
       if (!name) return alert("Escribe tu nombre primero");
       
@@ -416,7 +610,7 @@
 
       myName = name;
       isHost = true;
-      roomCode = Math.floor(1000 + Math.random() * 9000).toString(); // Código numérico de 4 dígitos
+      roomCode = Math.floor(1000 + Math.random() * 9000).toString();
 
       const peerId = 'ami-invis-' + roomCode;
       peer = new Peer(peerId);
@@ -441,7 +635,7 @@
         btn.disabled = false;
         btn.innerText = "👑 Crear Nueva Sala";
         if (err.type === 'unavailable-id') {
-          createRoom(); // Si colisiona el ID, intenta con otro
+          createRoom();
         } else {
           alert("Error de conexión: " + err.message);
         }
@@ -450,6 +644,7 @@
 
     // --- UNIRSE A SALA (INVITADO) ---
     function joinRoom() {
+      playClickBell();
       const name = document.getElementById('player-name').value.trim();
       const code = document.getElementById('room-input').value.trim();
       if (!name) return alert("Escribe tu nombre");
@@ -571,6 +766,7 @@
     }
 
     function hostStartGame() {
+      playClickBell();
       gameState.step = 'roulette';
       broadcast('SYNC', gameState);
       renderState();
@@ -607,6 +803,7 @@
     }
 
     function hostSpinWheel() {
+      playClickBell();
       const winnerIndex = Math.floor(Math.random() * gameState.remaining.length);
       const sliceDeg = 360 / gameState.remaining.length;
       const rotation = 360 * 5 + (360 - (winnerIndex * sliceDeg + sliceDeg / 2)) - 90;
@@ -619,7 +816,17 @@
       const wheel = document.getElementById('wheel-canvas');
       wheel.style.transform = `rotate(${rotation}deg)`;
 
+      // Sonido de tictac acelerado mientras gira
+      let ticks = 0;
+      const tickInterval = setInterval(() => {
+        playWheelTick();
+        ticks++;
+        if (ticks > 28) clearInterval(tickInterval);
+      }, 130);
+
       setTimeout(() => {
+        clearInterval(tickInterval);
+        playFanfare();
         confetti({ particleCount: 70, spread: 60 });
         const winnerName = gameState.remaining[winnerIdx];
         const winnerObj = gameState.players.find(p => p.name === winnerName);
@@ -644,6 +851,7 @@
 
     // --- VOTACIONES ---
     function rate(cat, val) {
+      playStarBell(val);
       localRatings[cat] = val;
       const group = document.querySelector(`.stars[data-cat="${cat}"]`);
       Array.from(group.children).forEach((star, idx) => {
@@ -656,6 +864,7 @@
     }
 
     function sendVote() {
+      playClickBell();
       if (isHost) {
         const target = gameState.currentOpener.name;
         gameState.scores[target].cat1.push(localRatings.cat1);
@@ -670,6 +879,7 @@
     }
 
     function hostNextTurn() {
+      playClickBell();
       if (gameState.remaining.length > 0) {
         gameState.step = 'roulette';
       } else {
@@ -681,6 +891,7 @@
 
     // --- RESULTADOS & PODIO ---
     function renderPodium() {
+      playFanfare();
       const list = document.getElementById('podium-list');
       const ranked = gameState.players.map(p => {
         const sc = gameState.scores[p.name] || {};
@@ -704,6 +915,7 @@
     }
 
     function shareWhatsApp() {
+      playClickBell();
       let txt = `🎄 *Premios Amigo Invisible Familiar* 🎁\n\n`;
       gameState.players.forEach(p => {
         const sc = gameState.scores[p.name] || {};
