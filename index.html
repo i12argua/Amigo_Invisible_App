@@ -1,1725 +1,700 @@
 <!DOCTYPE html>
-<html lang="es" class="h-full">
+<html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Amigo Invisible Familiar 🎄 Gala Multijugador</title>
-
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- FontAwesome -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <!-- Canvas Confetti -->
-  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
-  <!-- Google Fonts: Mountains of Christmas & Outfit -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Gala Amigo Invisible Navideño 🎄</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Mountains+of+Christmas:wght@700&family=Outfit:wght@300;400;500;600;700;800&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
-
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: {
-            xmas: ['"Mountains of Christmas"', 'cursive'],
-            serif: ['"Playfair Display"', 'serif'],
-            sans: ['"Outfit"', 'sans-serif']
-          },
-          colors: {
-            festive: {
-              crimson: '#8b0c16',
-              burgundy: '#52060b',
-              gold: '#ffd166',
-              golddark: '#c59b27',
-              pine: '#0f3c20',
-              cream: '#fffdf7'
-            }
-          }
-        }
-      }
-    }
-  </script>
-
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Mountains+of+Christmas:wght@700&display=swap" rel="stylesheet">
+  <!-- Paho MQTT para sincronización gratuita e instantánea -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+  <!-- Confeti -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
   <style>
-    /* Soporte Safe Area para iPhone y notched Android */
     :root {
-      --sat: env(safe-area-inset-top, 0px);
-      --sab: env(safe-area-inset-bottom, 0px);
+      --xmas-red: #c41e3a;
+      --xmas-dark-red: #7a0c1e;
+      --xmas-green: #165b33;
+      --xmas-gold: #f8b229;
+      --snow-white: #fefefe;
+      --card-bg: rgba(22, 91, 51, 0.75);
     }
-
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     body {
-      background: radial-gradient(circle at 50% 12%, #7a1017 0%, #44070c 50%, #150204 100%);
-      color: #fff9f0;
-      min-height: 100%;
-      overscroll-behavior-y: none;
-      -webkit-tap-highlight-color: transparent;
-      padding-top: var(--sat);
-      padding-bottom: var(--sab);
-    }
-
-    /* Luces Navideñas */
-    .lights-bar {
+      font-family: 'Outfit', sans-serif;
+      background: radial-gradient(circle at center, #900d1e 0%, #3e040b 100%);
+      color: #fff;
+      min-height: 100vh;
+      overflow-x: hidden;
       display: flex;
-      justify-content: space-around;
-      width: 100%;
-      height: 12px;
-      margin: 0;
-      padding: 0;
-      list-style: none;
-      position: absolute;
-      top: -4px;
-      left: 0;
-      z-index: 30;
-      pointer-events: none;
-      overflow: hidden;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
     }
-    .lights-bar li {
-      width: 10px;
-      height: 14px;
-      border-radius: 50%;
-      background: #ff4d4d;
-      animation: lightRed 1.3s infinite alternate;
-    }
-    .lights-bar li:nth-child(2n) { background: #ffd166; animation: lightGold 1.1s infinite alternate; }
-    .lights-bar li:nth-child(3n) { background: #2ec4b6; animation: lightGreen 1.5s infinite alternate; }
-    .lights-bar li:nth-child(4n) { background: #ffffff; animation: lightWhite 1.2s infinite alternate; }
-
-    @keyframes lightRed { from { opacity: 0.3; transform: scale(0.9); box-shadow: 0 0 4px #ff4d4d; } to { opacity: 1; transform: scale(1.15); box-shadow: 0 0 14px #ff1744; } }
-    @keyframes lightGold { from { opacity: 0.3; transform: scale(0.9); box-shadow: 0 0 4px #ffd166; } to { opacity: 1; transform: scale(1.15); box-shadow: 0 0 16px #ffc107; } }
-    @keyframes lightGreen { from { opacity: 0.3; transform: scale(0.9); box-shadow: 0 0 4px #2ec4b6; } to { opacity: 1; transform: scale(1.15); box-shadow: 0 0 14px #00e676; } }
-    @keyframes lightWhite { from { opacity: 0.3; transform: scale(0.9); box-shadow: 0 0 4px #fff; } to { opacity: 1; transform: scale(1.15); box-shadow: 0 0 14px #fff; } }
-
-    /* Fondo de Nieve */
-    #snowCanvas {
+    #snow-canvas {
       position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
       pointer-events: none;
-      z-index: 5;
+      z-index: 1;
     }
-
-    /* Glassmorphism festivo */
-    .glass-box {
-      background: rgba(38, 5, 10, 0.78);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
-      border: 1.5px solid rgba(255, 209, 102, 0.28);
-      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    .container {
+      width: 100%;
+      max-width: 480px;
+      padding: 16px;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
-
-    .btn-gold {
-      background: linear-gradient(135deg, #ffd166 0%, #e59f14 50%, #b37805 100%);
-      color: #2b0407;
-      font-weight: 800;
-      box-shadow: 0 6px 18px rgba(229, 159, 20, 0.45);
-      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    header {
+      text-align: center;
+      margin-bottom: 20px;
     }
-    .btn-gold:active {
-      transform: scale(0.97);
-      box-shadow: 0 2px 8px rgba(229, 159, 20, 0.3);
+    h1 {
+      font-family: 'Mountains of Christmas', cursive;
+      font-size: 2.8rem;
+      color: var(--xmas-gold);
+      text-shadow: 0 0 10px rgba(248, 178, 41, 0.6);
+      line-height: 1.1;
     }
-
-    .glow-gold-text {
-      text-shadow: 0 2px 4px rgba(0,0,0,0.6), 0 0 12px rgba(255, 209, 102, 0.5);
+    .badge-room {
+      background: rgba(0,0,0,0.4);
+      border: 1px solid var(--xmas-gold);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      display: inline-block;
+      margin-top: 8px;
     }
-
-    /* Touch stars */
-    .star-btn {
-      touch-action: manipulation;
-      transition: transform 0.15s ease;
+    .card {
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 2px solid rgba(248, 178, 41, 0.4);
+      border-radius: 24px;
+      padding: 20px;
+      width: 100%;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.5);
+      margin-bottom: 16px;
     }
-    .star-btn:active {
-      transform: scale(1.3);
+    .hidden { display: none !important; }
+    input[type="text"] {
+      width: 100%;
+      padding: 14px 18px;
+      border-radius: 14px;
+      border: 2px solid var(--xmas-gold);
+      background: rgba(255,255,255,0.95);
+      color: #333;
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 14px;
+      outline: none;
+      text-align: center;
+    }
+    .btn {
+      width: 100%;
+      padding: 15px;
+      border-radius: 16px;
+      border: none;
+      font-size: 1.15rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: transform 0.1s, box-shadow 0.2s;
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn-gold { background: linear-gradient(135deg, #f8b229, #d99214); color: #431f00; box-shadow: 0 6px 16px rgba(248, 178, 41, 0.4); }
+    .btn-red { background: linear-gradient(135deg, #e62244, #a3142c); color: #fff; box-shadow: 0 6px 16px rgba(230, 34, 68, 0.4); margin-top: 10px; }
+    .avatars {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .avatar-btn {
+      font-size: 1.8rem;
+      background: rgba(255,255,255,0.15);
+      border: 2px solid transparent;
+      border-radius: 14px;
+      padding: 4px 8px;
+      cursor: pointer;
+    }
+    .avatar-btn.selected {
+      border-color: var(--xmas-gold);
+      background: rgba(248, 178, 41, 0.3);
+      transform: scale(1.1);
+    }
+    .player-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.2);
+      padding: 6px 12px;
+      border-radius: 20px;
+      margin: 4px;
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+    /* Ruleta */
+    .wheel-box {
+      position: relative;
+      width: 280px;
+      height: 280px;
+      margin: 15px auto;
+    }
+    #wheel-canvas {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      box-shadow: 0 0 20px rgba(0,0,0,0.6), 0 0 0 6px var(--xmas-gold);
+      transition: transform 4s cubic-bezier(0.15, 0.9, 0.2, 1);
+    }
+    .wheel-pointer {
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 2rem;
+      z-index: 10;
+      filter: drop-shadow(0 4px 6px rgba(0,0,0,0.5));
+    }
+    /* Estrellas */
+    .survey-group {
+      margin-bottom: 16px;
+      text-align: left;
+      background: rgba(0,0,0,0.2);
+      padding: 10px 14px;
+      border-radius: 14px;
+    }
+    .survey-title {
+      font-weight: 700;
+      font-size: 0.95rem;
+      margin-bottom: 6px;
+      color: var(--xmas-gold);
+    }
+    .stars {
+      display: flex;
+      justify-content: space-between;
+      max-width: 200px;
+    }
+    .star {
+      font-size: 1.8rem;
+      color: rgba(255,255,255,0.3);
+      cursor: pointer;
+    }
+    .star.active { color: var(--xmas-gold); }
+    .podium-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(0,0,0,0.25);
+      padding: 12px 16px;
+      border-radius: 14px;
+      margin-bottom: 8px;
+      border-left: 5px solid var(--xmas-gold);
     }
   </style>
 </head>
-<body class="flex flex-col justify-between font-sans min-h-screen relative overflow-x-hidden selection:bg-amber-400 selection:text-red-950">
+<body>
+  <canvas id="snow-canvas"></canvas>
 
-  <!-- Canvas Nieve Cayendo -->
-  <canvas id="snowCanvas"></canvas>
+  <div class="container">
+    <header>
+      <h1>Amigo Invisible</h1>
+      <div id="room-badge" class="badge-room hidden">Sala: <strong id="room-code-display">---</strong></div>
+    </header>
 
-  <!-- Luces Navideñas Superiores -->
-  <div class="relative w-full overflow-hidden h-3">
-    <ul class="lights-bar" id="lightsBar"></ul>
-  </div>
-
-  <!-- Header Superior -->
-  <header class="relative z-20 w-full border-b border-amber-400/20 bg-black/40 backdrop-blur-md px-4 py-2.5">
-    <div class="max-w-md mx-auto flex items-center justify-between">
-      <div class="flex items-center space-x-2">
-        <span class="text-2xl filter drop-shadow">🎄</span>
-        <div>
-          <h1 class="font-xmas text-2xl font-bold tracking-wide text-amber-300 leading-none glow-gold-text">
-            Amigo Invisible
-          </h1>
-          <span id="roomCodeHeader" class="text-[10px] text-rose-200/90 font-medium tracking-wider">
-            SALA: <b class="text-amber-300 tracking-widest font-mono">---</b>
-          </span>
-        </div>
-      </div>
-
-      <div class="flex items-center gap-2">
-        <!-- Badge Rol -->
-        <span id="userRoleBadge" class="hidden text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border border-amber-300/40 bg-amber-400/10 text-amber-300">
-          Jugador
-        </span>
-
-        <!-- Audio On/Off -->
-        <button onclick="toggleAudio()" id="audioBtn" class="w-8 h-8 rounded-full bg-black/50 border border-amber-400/30 flex items-center justify-center text-amber-300 active:scale-90 text-xs">
-          <i id="audioIcon" class="fa-solid fa-bell"></i>
-        </button>
-      </div>
-    </div>
-  </header>
-
-  <!-- CONTENEDOR PRINCIPAL RESPONSIVE PARA SMARTPHONES -->
-  <main class="relative z-20 flex-1 w-full max-w-md mx-auto px-4 py-3 flex flex-col justify-center">
-
-    <!-- ==========================================
-         FASE 1: ENTRADA / CREAR / UNIRSE
-         ========================================== -->
-    <section id="view-auth" class="w-full flex flex-col space-y-4">
-      <div class="text-center py-2">
-        <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-950/80 border border-amber-400/30 text-amber-300 text-xs font-semibold mb-2">
-          <span>🎅</span> Sala Familiar Multidispositivo
-        </div>
-        <h2 class="font-xmas text-4xl sm:text-5xl font-bold text-white glow-gold-text">
-          ¡Noche de Regalos!
-        </h2>
-        <p class="text-xs text-rose-100/80 mt-1 max-w-xs mx-auto">
-          Conéctate desde tu móvil para participar en la ruleta y votar en directo a la familia.
-        </p>
-      </div>
-
-      <div class="glass-box rounded-3xl p-5 shadow-2xl space-y-4 relative">
-        <!-- Input Nombre -->
-        <div>
-          <label class="block text-xs font-bold uppercase tracking-wider text-amber-200 mb-1">Tu Nombre o Apodo:</label>
-          <div class="relative">
-            <span class="absolute left-3.5 top-3 text-sm">🎁</span>
-            <input 
-              type="text" 
-              id="inputUserName" 
-              placeholder="Ej. Tía Carmen, David, Abuela..." 
-              maxlength="20"
-              class="w-full pl-10 pr-3 py-3 rounded-2xl bg-black/60 border border-amber-400/30 text-amber-100 placeholder-rose-200/40 text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400"
-            >
-          </div>
-        </div>
-
-        <!-- Selector de Avatar -->
-        <div>
-          <label class="block text-xs font-bold uppercase tracking-wider text-amber-200 mb-1.5">Elige tu Avatar Navideño:</label>
-          <div class="grid grid-cols-6 gap-2" id="avatarPickerGrid">
-            <!-- Renderizado dinámicamente -->
-          </div>
-        </div>
-
-        <!-- Botones Modo: Crear o Unirse -->
-        <div class="pt-2 space-y-2.5">
-          <button 
-            type="button" 
-            onclick="createNewRoom()" 
-            class="w-full py-3.5 rounded-2xl btn-gold text-sm font-bold flex items-center justify-center gap-2 cursor-pointer"
-          >
-            <i class="fa-solid fa-crown text-amber-950"></i>
-            <span>Crear Nueva Sala (Soy el Anfitrión)</span>
-          </button>
-
-          <div class="relative flex py-1 items-center">
-            <div class="flex-grow border-t border-amber-400/20"></div>
-            <span class="flex-shrink mx-3 text-[11px] text-rose-200/60 uppercase">o entrar a una sala</span>
-            <div class="flex-grow border-t border-amber-400/20"></div>
-          </div>
-
-          <div class="flex gap-2">
-            <input 
-              type="text" 
-              id="inputJoinCode" 
-              placeholder="CÓDIGO (Ej: XMAS)" 
-              maxlength="6"
-              class="w-1/2 uppercase text-center font-mono tracking-widest py-3 rounded-2xl bg-black/60 border border-amber-400/30 text-amber-300 font-bold text-sm focus:outline-none focus:border-amber-400"
-            >
-            <button 
-              type="button" 
-              onclick="joinExistingRoom()" 
-              class="w-1/2 py-3 rounded-2xl bg-emerald-800 hover:bg-emerald-700 active:scale-95 text-emerald-100 font-bold text-sm border border-emerald-400/40 flex items-center justify-center gap-1.5"
-            >
-              <i class="fa-solid fa-right-to-bracket text-xs"></i>
-              <span>Unirme</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ==========================================
-         FASE 2: SALA DE ESPERA / LOBBY MULTIJUGADOR
-         ========================================== -->
-    <section id="view-lobby" class="hidden w-full flex flex-col space-y-4">
-      <div class="glass-box rounded-3xl p-5 text-center shadow-xl relative">
-        <span class="text-xs uppercase font-bold tracking-widest text-amber-300/90">Código de Sala</span>
-        <div class="my-1 flex items-center justify-center gap-2">
-          <span id="displayLobbyCode" class="font-mono text-4xl sm:text-5xl font-black text-amber-300 tracking-widest glow-gold-text">----</span>
-          <button onclick="copyRoomCodeShare()" class="w-9 h-9 rounded-xl bg-amber-400/20 border border-amber-400/30 flex items-center justify-center text-amber-300 active:scale-90 text-sm" title="Copiar código">
-            <i class="fa-solid fa-copy"></i>
-          </button>
-        </div>
-        <p class="text-[11px] text-rose-100/70">
-          Comparte este código con la familia para que entren desde su móvil.
-        </p>
-      </div>
-
-      <!-- Lista de Familiares en Sala -->
-      <div class="glass-box rounded-3xl p-4 shadow-xl flex-1 flex flex-col">
-        <div class="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-amber-200 mb-3 px-1">
-          <span>Familiares Conectados</span>
-          <span class="bg-black/40 px-2 py-0.5 rounded-full text-emerald-400 border border-emerald-400/30" id="lobbyCountBadge">0</span>
-        </div>
-
-        <div id="lobbyPlayersList" class="space-y-2 overflow-y-auto max-h-56 pr-1">
-          <!-- Renderizado dinámicamente -->
-        </div>
-
-        <div id="lobbyWaitingMsg" class="mt-4 text-center text-xs text-rose-200/70 hidden">
-          <i class="fa-solid fa-hourglass-half animate-spin mr-1"></i> Esperando a que el anfitrión comience...
-        </div>
-
-        <!-- Botón comenzar (Solo Anfitrión) -->
-        <div id="hostLobbyControls" class="mt-4 pt-2 border-t border-amber-400/15">
-          <button 
-            type="button" 
-            id="btnStartGala"
-            onclick="startGameGala()" 
-            class="w-full py-3.5 rounded-2xl btn-gold text-sm font-bold flex items-center justify-center gap-2 cursor-pointer"
-          >
-            <span class="text-lg">🎄</span>
-            <span>¡Comenzar Gala Navideña!</span>
-          </button>
-          <span id="minPlayersNotice" class="block text-[11px] text-center text-rose-200/60 mt-1.5">
-            Se necesitan al menos 2 personas para empezar.
-          </span>
-        </div>
-      </div>
-    </section>
-
-    <!-- ==========================================
-         FASE 3: RULETA SINCRONIZADA EN VIVO
-         ========================================== -->
-    <section id="view-roulette" class="hidden w-full flex flex-col items-center justify-center space-y-3">
+    <!-- PANTALLA 1: ENTRADA / CREAR SALA -->
+    <div id="screen-auth" class="card">
+      <h2 style="margin-bottom: 12px; text-align: center;">¡Bienvenidos! 🎁</h2>
       
-      <!-- Indicador de turnos restantes -->
-      <div class="w-full glass-box px-4 py-2 rounded-2xl flex items-center justify-between text-xs">
-        <div class="flex items-center gap-1.5">
-          <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
-          <span class="text-rose-200">Faltan abrir:</span>
-          <span id="rouletteRemainingCount" class="font-bold text-amber-300">0</span>
-        </div>
-        <div class="flex items-center gap-1.5">
-          <span class="text-emerald-300">Ya abrieron:</span>
-          <span id="rouletteCompletedCount" class="font-bold text-emerald-400">0</span>
-        </div>
+      <label style="font-size: 0.85rem; font-weight: 600;">ELIGE TU PERSONAJE:</label>
+      <div class="avatars">
+        <button class="avatar-btn selected" onclick="setAvatar('🎅')">🎅</button>
+        <button class="avatar-btn" onclick="setAvatar('🤶')">🤶</button>
+        <button class="avatar-btn" onclick="setAvatar('🦌')">🦌</button>
+        <button class="avatar-btn" onclick="setAvatar('⛄')">⛄</button>
+        <button class="avatar-btn" onclick="setAvatar('🧝')">🧝</button>
       </div>
 
-      <!-- Ruleta con puntero navideño -->
-      <div class="relative flex flex-col items-center justify-center my-1">
-        <!-- Puntero Superior con Lazo -->
-        <div class="absolute -top-3.5 z-30 flex flex-col items-center pointer-events-none">
-          <div class="text-lg filter drop-shadow -mb-1">🎀</div>
-          <div class="w-0 h-0 border-l-[14px] border-l-transparent border-r-[14px] border-r-transparent border-t-[26px] border-t-amber-400 filter drop-shadow-md"></div>
-        </div>
+      <input type="text" id="player-name" placeholder="Tu nombre o apodo" maxlength="15">
 
-        <!-- Marco dorado -->
-        <div class="rounded-full p-2 bg-gradient-to-tr from-amber-500 via-yellow-300 to-amber-600 shadow-[0_0_35px_rgba(255,209,102,0.35)] border-3 border-amber-200/60">
-          <canvas id="syncedRouletteCanvas" width="380" height="380" class="w-[78vw] h-[78vw] max-w-[340px] max-h-[340px] rounded-full bg-slate-950"></canvas>
-        </div>
+      <button class="btn btn-gold" onclick="createRoom()">👑 Crear Nueva Sala</button>
 
-        <!-- Botón de giro (Habilitado para todos o anfitrión) -->
-        <button 
-          id="btnSpinWheel" 
-          onclick="triggerWheelSpin()" 
-          class="mt-4 btn-gold w-full max-w-[280px] py-3 rounded-2xl font-xmas text-2xl font-bold flex items-center justify-center gap-2 border border-amber-200"
-        >
-          <span>GIRAR RULETA 🎁</span>
-        </button>
-
-        <span id="spinningBroadcastNotice" class="hidden text-xs text-amber-300 animate-pulse mt-2 font-medium">
-          🎲 ¡La ruleta está girando para toda la familia...!
-        </span>
+      <div style="display: flex; align-items: center; margin: 15px 0;">
+        <hr style="flex:1; border:0; border-top:1px solid rgba(255,255,255,0.2)">
+        <span style="padding: 0 10px; font-size: 0.8rem; opacity: 0.7;">O ENTRA CON CÓDIGO</span>
+        <hr style="flex:1; border:0; border-top:1px solid rgba(255,255,255,0.2)">
       </div>
 
-      <!-- Quienes están en el bombo -->
-      <div class="w-full glass-box rounded-2xl p-2.5 text-center">
-        <span class="text-[10px] text-amber-200/80 uppercase font-bold tracking-wider block mb-1">
-          En el bombo todavía:
-        </span>
-        <div id="roulettePendingPills" class="flex flex-wrap justify-center gap-1">
-          <!-- Renderizado dinámico -->
-        </div>
+      <input type="text" id="room-input" placeholder="CÓDIGO (Ej: NAVIDAD)" style="text-transform: uppercase;">
+      <button class="btn btn-red" onclick="joinRoom()">🎄 Unirme a la Sala</button>
+    </div>
+
+    <!-- PANTALLA 2: LOBBY DE ESPERA -->
+    <div id="screen-lobby" class="card hidden">
+      <h3 style="text-align:center; color: var(--xmas-gold);">Sala de Espera</h3>
+      <p style="text-align: center; font-size: 0.85rem; margin-top: 4px; opacity: 0.9;">
+        Dile a la familia que use el código: <b id="lobby-code-txt" style="font-size: 1.2rem; color: #fff;"></b>
+      </p>
+
+      <div style="margin: 20px 0; min-height: 80px;">
+        <h4 style="font-size: 0.9rem; margin-bottom: 8px;">Participantes unidos:</h4>
+        <div id="lobby-list" style="display: flex; flex-wrap: wrap;"></div>
       </div>
-    </section>
 
-    <!-- ==========================================
-         FASE 4: MODAL AVISO DE GANADOR DE TURNO
-         ========================================= -->
-    <div id="modalTurnWinner" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-      <div class="glass-box rounded-3xl max-w-sm w-full p-6 text-center border-2 border-amber-300/60 shadow-[0_0_50px_rgba(255,209,102,0.4)]">
-        <div class="text-5xl mb-2 animate-bounce">🎁</div>
-        <span class="text-xs uppercase font-extrabold tracking-widest text-amber-300">¡Le ha tocado abrir a!</span>
-        
-        <div class="py-3">
-          <span id="winnerAnnounceName" class="font-xmas text-4xl font-extrabold text-amber-300 glow-gold-text block">
-            Nombre
-          </span>
+      <div id="host-start-btn-wrap" class="hidden">
+        <button class="btn btn-gold" onclick="hostStartGame()">🎉 ¡Empezar la Gala!</button>
+      </div>
+      <p id="guest-waiting-msg" style="text-align:center; font-style:italic; font-size:0.9rem; opacity:0.8;">
+        Esperando a que el anfitrión comience...
+      </p>
+    </div>
+
+    <!-- PANTALLA 3: RULETA -->
+    <div id="screen-roulette" class="card hidden" style="text-align:center;">
+      <h3 style="color:var(--xmas-gold);">¿Quién abre su regalo? 🎁</h3>
+      <p style="font-size: 0.85rem; opacity: 0.9;">¡Que ruede la magia de la Navidad!</p>
+
+      <div class="wheel-box">
+        <div class="wheel-pointer">🔻</div>
+        <canvas id="wheel-canvas" width="280" height="280"></canvas>
+      </div>
+
+      <div id="host-spin-btn-wrap" class="hidden">
+        <button id="spin-btn" class="btn btn-gold" onclick="hostSpinWheel()">🎰 Girar Ruleta</button>
+      </div>
+      <p id="guest-spin-msg" style="font-style:italic; font-size:0.9rem; opacity:0.8;">
+        El anfitrión girará la ruleta...
+      </p>
+    </div>
+
+    <!-- PANTALLA 4: VOTACIONES -->
+    <div id="screen-vote" class="card hidden">
+      <div style="text-align:center; margin-bottom: 12px;">
+        <span style="font-size: 2.5rem;" id="voted-avatar">🎁</span>
+        <h3 id="voted-name" style="color:var(--xmas-gold); font-size: 1.5rem;">Nombre</h3>
+        <p style="font-size: 0.85rem;">está abriendo su regalo ahora mismo.</p>
+      </div>
+
+      <div id="vote-form">
+        <div class="survey-group">
+          <div class="survey-title">🎯 Regalo Acertado</div>
+          <div class="stars" data-cat="cat1">
+            <span class="star" onclick="rate('cat1', 1)">★</span>
+            <span class="star" onclick="rate('cat1', 2)">★</span>
+            <span class="star" onclick="rate('cat1', 3)">★</span>
+            <span class="star" onclick="rate('cat1', 4)">★</span>
+            <span class="star" onclick="rate('cat1', 5)">★</span>
+          </div>
         </div>
 
-        <p class="text-xs text-rose-100/80 mb-5">
-          ¡Abre tu regalo ante la familia! Cuando todos lo vean, pasarán a puntuarlo en sus teléfonos.
-        </p>
+        <div class="survey-group">
+          <div class="survey-title">🎀 Envoltorio Original / Currado</div>
+          <div class="stars" data-cat="cat2">
+            <span class="star" onclick="rate('cat2', 1)">★</span>
+            <span class="star" onclick="rate('cat2', 2)">★</span>
+            <span class="star" onclick="rate('cat2', 3)">★</span>
+            <span class="star" onclick="rate('cat2', 4)">★</span>
+            <span class="star" onclick="rate('cat2', 5)">★</span>
+          </div>
+        </div>
 
-        <button 
-          id="btnProceedVoteModal"
-          onclick="proceedToVotingPhase()" 
-          class="w-full py-3 rounded-2xl btn-gold text-xs font-bold uppercase tracking-wider"
-        >
-          Ir a la Votación en Vivo ⭐
-        </button>
+        <div class="survey-group">
+          <div class="survey-title">💰 Precio Acordado</div>
+          <div class="stars" data-cat="cat3">
+            <span class="star" onclick="rate('cat3', 1)">★</span>
+            <span class="star" onclick="rate('cat3', 2)">★</span>
+            <span class="star" onclick="rate('cat3', 3)">★</span>
+            <span class="star" onclick="rate('cat3', 4)">★</span>
+            <span class="star" onclick="rate('cat3', 5)">★</span>
+          </div>
+        </div>
+
+        <div class="survey-group">
+          <div class="survey-title">💡 Originalidad del Regalo</div>
+          <div class="stars" data-cat="cat4">
+            <span class="star" onclick="rate('cat4', 1)">★</span>
+            <span class="star" onclick="rate('cat4', 2)">★</span>
+            <span class="star" onclick="rate('cat4', 3)">★</span>
+            <span class="star" onclick="rate('cat4', 4)">★</span>
+            <span class="star" onclick="rate('cat4', 5)">★</span>
+          </div>
+        </div>
+
+        <button id="send-vote-btn" class="btn btn-gold" onclick="sendVote()">⭐ Enviar Mi Puntuación</button>
+      </div>
+
+      <div id="vote-feedback" class="hidden" style="text-align:center; padding: 20px 0;">
+        <h4>¡Voto registrado! 🎄</h4>
+        <p style="font-size: 0.9rem; margin-top: 6px; opacity:0.8;">Esperando a que todos terminen de puntuar...</p>
+      </div>
+
+      <div id="host-next-wrap" class="hidden" style="margin-top: 15px;">
+        <button class="btn btn-red" onclick="hostNextTurn()">Siguiente Regalo ⏭️</button>
       </div>
     </div>
 
-    <!-- ==========================================
-         FASE 5: VOTACIÓN EN VIVO (ENCUESTA 4 CRITERIOS)
-         ========================================== -->
-    <section id="view-voting" class="hidden w-full flex flex-col space-y-3">
-      
-      <!-- Cabecera de la persona evaluada -->
-      <div class="text-center">
-        <div class="inline-flex items-center gap-1 px-3 py-0.5 rounded-full bg-amber-400/20 border border-amber-400/30 text-amber-200 text-[11px] font-bold uppercase">
-          <span>🎁</span> Valorando el regalo de:
-        </div>
-        <h2 id="votingTargetTitle" class="font-xmas text-4xl font-bold text-amber-300 glow-gold-text mt-0.5">
-          Nombre
-        </h2>
-      </div>
+    <!-- PANTALLA 5: RESULTADOS Y PODIO -->
+    <div id="screen-results" class="card hidden">
+      <h2 style="text-align:center; color:var(--xmas-gold); font-family:'Mountains of Christmas'; font-size:2.4rem;">
+        🏆 Premios Amigo Invisible
+      </h2>
+      <p style="text-align:center; font-size: 0.85rem; margin-bottom: 16px;">¡Todos han abierto su regalo!</p>
 
-      <!-- Tarjeta especial: Si el usuario actual es quien abre el regalo -->
-      <div id="openingGiftNoticeCard" class="hidden glass-box rounded-3xl p-6 text-center space-y-3">
-        <div class="text-5xl">🎄✨🎅</div>
-        <h3 class="font-xmas text-3xl font-bold text-amber-300">¡Es tu momento!</h3>
-        <p class="text-xs text-rose-100/90 leading-relaxed">
-          Muestra tu regalo, explica de qué se trata y admira el envoltorio mientras los demás familiares lo puntúan desde sus pantallas.
-        </p>
-        <div class="py-2 bg-black/40 rounded-2xl border border-amber-400/20">
-          <span class="text-xs text-amber-200 font-semibold">Votos recibidos por la familia:</span>
-          <div class="text-2xl font-bold text-emerald-400 mt-1" id="selfVotesCountDisplay">0 / 0</div>
-        </div>
-      </div>
+      <div id="podium-list"></div>
 
-      <!-- Formulario de votación para el resto de la familia -->
-      <div id="votingFormCard" class="glass-box rounded-3xl p-4 shadow-2xl space-y-3">
-        
-        <!-- Criterio 1: Acertado -->
-        <div class="bg-black/35 rounded-2xl p-2.5 border border-amber-400/15">
-          <div class="flex items-center justify-between mb-1">
-            <span class="text-xs font-bold text-rose-100 flex items-center gap-1.5">
-              <span>🎯</span> Regalo acertado
-            </span>
-            <span id="badgeC1" class="text-xs font-bold text-amber-300 font-mono">5/5</span>
-          </div>
-          <div class="flex justify-between px-2 text-2xl text-amber-400" data-cat="c1">
-            <!-- 5 estrellas -->
-          </div>
-        </div>
-
-        <!-- Criterio 2: Envoltorio -->
-        <div class="bg-black/35 rounded-2xl p-2.5 border border-amber-400/15">
-          <div class="flex items-center justify-between mb-1">
-            <span class="text-xs font-bold text-rose-100 flex items-center gap-1.5">
-              <span>🎀</span> Envoltorio original
-            </span>
-            <span id="badgeC2" class="text-xs font-bold text-amber-300 font-mono">5/5</span>
-          </div>
-          <div class="flex justify-between px-2 text-2xl text-amber-400" data-cat="c2">
-            <!-- 5 estrellas -->
-          </div>
-        </div>
-
-        <!-- Criterio 3: Precio -->
-        <div class="bg-black/35 rounded-2xl p-2.5 border border-amber-400/15">
-          <div class="flex items-center justify-between mb-1">
-            <span class="text-xs font-bold text-rose-100 flex items-center gap-1.5">
-              <span>💶</span> Precio acordado
-            </span>
-            <span id="badgeC3" class="text-xs font-bold text-amber-300 font-mono">5/5</span>
-          </div>
-          <div class="flex justify-between px-2 text-2xl text-amber-400" data-cat="c3">
-            <!-- 5 estrellas -->
-          </div>
-        </div>
-
-        <!-- Criterio 4: Originalidad -->
-        <div class="bg-black/35 rounded-2xl p-2.5 border border-amber-400/15">
-          <div class="flex items-center justify-between mb-1">
-            <span class="text-xs font-bold text-rose-100 flex items-center gap-1.5">
-              <span>✨</span> Regalo original
-            </span>
-            <span id="badgeC4" class="text-xs font-bold text-amber-300 font-mono">5/5</span>
-          </div>
-          <div class="flex justify-between px-2 text-2xl text-amber-400" data-cat="c4">
-            <!-- 5 estrellas -->
-          </div>
-        </div>
-
-        <!-- Botón Enviar Voto -->
-        <button 
-          id="btnSubmitVote" 
-          onclick="submitMyVote()" 
-          class="w-full py-3 rounded-2xl btn-gold text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer"
-        >
-          <i class="fa-solid fa-check"></i>
-          <span>Enviar mi Puntuación</span>
-        </button>
-
-        <div id="voteSubmittedNotice" class="hidden text-center py-2 bg-emerald-950/70 border border-emerald-500/40 rounded-2xl text-xs text-emerald-300 font-semibold">
-          <i class="fa-solid fa-circle-check mr-1"></i> ¡Tu voto ha sido registrado!
-        </div>
-      </div>
-
-      <!-- Barra de progreso de votos de la sala y Botón Siguiente -->
-      <div class="glass-box rounded-2xl p-3 flex items-center justify-between text-xs">
-        <div>
-          <span class="text-rose-200/80">Votos en directo:</span>
-          <span id="liveVotesProgressText" class="font-bold text-amber-300 ml-1">0 de 0</span>
-        </div>
-
-        <button 
-          id="btnNextTurnOrEnd" 
-          onclick="finishCurrentTurnVote()" 
-          class="px-3 py-2 bg-emerald-800 hover:bg-emerald-700 active:scale-95 text-white font-bold rounded-xl text-xs border border-emerald-400/30 flex items-center gap-1.5"
-        >
-          <span id="btnNextTurnLabel">Siguiente Turno</span>
-          <i class="fa-solid fa-arrow-right text-[10px]"></i>
-        </button>
-      </div>
-    </section>
-
-    <!-- ==========================================
-         FASE 6: PODIO & GALA FINAL DE PREMIOS
-         ========================================== -->
-    <section id="view-results" class="hidden w-full flex flex-col space-y-4">
-      <div class="text-center">
-        <div class="text-4xl mb-0.5">👑🎄🏆</div>
-        <h2 class="font-xmas text-4xl sm:text-5xl font-bold text-amber-300 glow-gold-text">
-          Gran Podio Navideño
-        </h2>
-        <p class="text-xs text-rose-100/80">Resultados oficiales del Amigo Invisible</p>
-      </div>
-
-      <!-- Tarjetas de Premios Especiales -->
-      <div id="awardsCategoryGrid" class="grid grid-cols-2 gap-2 text-xs">
-        <!-- Renderizado dinámicamente -->
-      </div>
-
-      <!-- Podio Gráfico 1º, 2º, 3º -->
-      <div class="glass-box rounded-3xl p-4 text-center">
-        <h3 class="font-xmas text-2xl font-bold text-amber-200 mb-2">✨ Cuadro de Honor ✨</h3>
-        <div id="podiumVisualRow" class="flex items-end justify-center gap-2 pt-4 pb-1 min-h-[190px]">
-          <!-- Renderizado dinámicamente -->
-        </div>
-      </div>
-
-      <!-- Clasificación General Completa -->
-      <div class="glass-box rounded-3xl p-4">
-        <h4 class="text-xs font-bold uppercase tracking-wider text-amber-200 mb-3 flex items-center gap-1.5">
-          <i class="fa-solid fa-list-ol text-amber-400"></i> Medias de Puntuación (sobre 5)
-        </h4>
-        <div id="resultsRankingRows" class="space-y-2">
-          <!-- Renderizado dinámicamente -->
-        </div>
-      </div>
-
-      <!-- Botones de Acción -->
-      <div class="space-y-2 pt-1 pb-4">
-        <button 
-          onclick="shareWhatsAppResults()" 
-          class="w-full py-3.5 rounded-2xl btn-gold text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer"
-        >
-          <i class="fa-brands fa-whatsapp text-sm text-green-950"></i>
-          <span>Compartir Resultados por WhatsApp</span>
-        </button>
-
-        <button 
-          onclick="restartPartyLobby()" 
-          class="w-full py-2.5 rounded-2xl bg-black/50 border border-amber-400/30 text-amber-200 text-xs font-semibold"
-        >
-          Volver a la Sala de Espera
-        </button>
-      </div>
-    </section>
-
-  </main>
-
-  <!-- Notificación Toast Flotante -->
-  <div id="toastPopup" class="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 translate-y-20 opacity-0 transition-all duration-300 glass-box border border-amber-400/50 px-4 py-2 rounded-2xl text-xs text-amber-200 shadow-2xl flex items-center gap-2 max-w-[90vw] pointer-events-none">
-    <span id="toastIcon">🔔</span>
-    <span id="toastMsg">Mensaje</span>
+      <button class="btn btn-gold" style="margin-top: 15px;" onclick="shareWhatsApp()">
+        📲 Compartir en WhatsApp
+      </button>
+    </div>
   </div>
 
-  <!-- Footer Festivo -->
-  <footer class="relative z-20 w-full text-center py-2 bg-black/40 text-[10px] text-amber-200/50 border-t border-amber-400/10">
-    Amigo Invisible Multijugador Familiar • ¡Feliz Navidad! 🎅🎄
-  </footer>
-
-  <!-- ==========================================
-       LÓGICA JAVASCRIPT COMPLETA Y SINCRONIZADA
-       ========================================== -->
-  <script type="module">
-    /* ========================================================
-       FIREBASE CONFIGURACIÓN Y SERVICIOS
-       ======================================================== */
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { 
-      getAuth, 
-      signInAnonymously, 
-      signInWithCustomToken 
-    } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { 
-      getFirestore, 
-      doc, 
-      setDoc, 
-      getDoc, 
-      updateDoc, 
-      onSnapshot 
-    } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-    // Constantes globales de entorno
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'amigo-invisible-navideno';
-    const firebaseConfig = typeof __firebase_config !== 'undefined' 
-      ? JSON.parse(__firebase_config) 
-      : {
-          apiKey: "demo-api-key",
-          authDomain: "demo-project.firebaseapp.com",
-          projectId: "demo-project",
-          storageBucket: "demo-project.appspot.com"
-        };
-
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-
-    /* ========================================================
-       ESTADO LOCAL DE LA APLICACIÓN
-       ======================================================== */
-    const AVATARS = ['🎅', '🤶', '🦌', '⛄', '🧝', '🍪', '🎁', '🔔', '⭐', '🎄', '🕯️', '🧦'];
-    const WHEEL_COLORS = ['#8b0c16', '#0f3c20', '#c59b27', '#99141f', '#154f2a', '#d4af37', '#52060b', '#072412'];
-
-    let myUser = {
-      id: null,
-      name: '',
-      avatar: '🎅',
-      isHost: false
-    };
-
-    let currentRoomCode = null;
-    let roomUnsubscribe = null;
-    let localRoomData = null;
-    let soundEnabled = true;
-
-    // Votaciones locales temporales
-    let myCurrentRatings = { c1: 5, c2: 5, c3: 5, c4: 5 };
-
-    // Ruleta local
-    let currentWheelAngle = 0;
-    let isSpinningAnim = false;
-    let spinVelocity = 0;
-    let lastTickIndex = -1;
-
-    /* ========================================================
-       SISTEMA DE AUDIO SINTETIZADO (Web Audio API)
-       ======================================================== */
-    let audioCtx = null;
-    function getAudioCtx() {
-      if (!audioCtx) {
-        const AudioClass = window.AudioContext || window.webkitAudioContext;
-        if (AudioClass) audioCtx = new AudioClass();
-      }
-      if (audioCtx && audioCtx.state === 'suspended') {
-        audioCtx.resume();
-      }
-      return audioCtx;
-    }
-
-    function playWheelTick() {
-      if (!soundEnabled) return;
-      try {
-        const ctx = getAudioCtx();
-        if (!ctx) return;
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(800 + Math.random() * 80, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(320, ctx.currentTime + 0.03);
-        gain.gain.setValueAtTime(0.06, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.03);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.04);
-      } catch (e) {}
-    }
-
-    function playJingleWinner() {
-      if (!soundEnabled) return;
-      try {
-        const ctx = getAudioCtx();
-        if (!ctx) return;
-        // Jingle Bells estrofa
-        const notes = [
-          { f: 659.25, t: 0.0, d: 0.14 },
-          { f: 659.25, t: 0.16, d: 0.14 },
-          { f: 659.25, t: 0.32, d: 0.28 },
-          { f: 659.25, t: 0.65, d: 0.14 },
-          { f: 659.25, t: 0.81, d: 0.14 },
-          { f: 659.25, t: 0.97, d: 0.28 },
-          { f: 659.25, t: 1.30, d: 0.14 },
-          { f: 783.99, t: 1.46, d: 0.14 },
-          { f: 523.25, t: 1.62, d: 0.18 },
-          { f: 587.33, t: 1.82, d: 0.18 },
-          { f: 659.25, t: 2.02, d: 0.45 }
-        ];
-        notes.forEach(n => {
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.type = 'triangle';
-          osc.frequency.setValueAtTime(n.f, ctx.currentTime + n.t);
-          gain.gain.setValueAtTime(0.18, ctx.currentTime + n.t);
-          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + n.t + n.d);
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start(ctx.currentTime + n.t);
-          osc.stop(ctx.currentTime + n.t + n.d + 0.05);
-        });
-      } catch (e) {}
-    }
-
-    function playFanfarePodium() {
-      if (!soundEnabled) return;
-      try {
-        const ctx = getAudioCtx();
-        if (!ctx) return;
-        const chords = [523.25, 659.25, 783.99, 1046.50];
-        chords.forEach((freq, idx) => {
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.11);
-          gain.gain.setValueAtTime(0.18, ctx.currentTime + idx * 0.11);
-          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.11 + 0.45);
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start(ctx.currentTime + idx * 0.11);
-          osc.stop(ctx.currentTime + idx * 0.11 + 0.5);
-        });
-      } catch (e) {}
-    }
-
-    window.toggleAudio = function() {
-      soundEnabled = !soundEnabled;
-      const icon = document.getElementById('audioIcon');
-      if (soundEnabled) {
-        icon.className = 'fa-solid fa-bell';
-        showToast('🔔 Efectos de sonido activados');
-      } else {
-        icon.className = 'fa-solid fa-bell-slash text-rose-300';
-        showToast('🔕 Sonidos silenciados');
-      }
-    };
-
-    /* ========================================================
-       EFECTO DE NIEVE Y LUCES SUPERIORES
-       ======================================================== */
-    const snowCanvas = document.getElementById('snowCanvas');
+  <script>
+    // --- EFECTO NIEVE ---
+    const snowCanvas = document.getElementById('snow-canvas');
     const sCtx = snowCanvas.getContext('2d');
     let flakes = [];
-
-    function initSnow() {
+    function resizeSnow() {
       snowCanvas.width = window.innerWidth;
       snowCanvas.height = window.innerHeight;
-      flakes = [];
-      for (let i = 0; i < 50; i++) {
-        flakes.push({
-          x: Math.random() * snowCanvas.width,
-          y: Math.random() * snowCanvas.height,
-          r: Math.random() * 2.2 + 0.8,
-          d: Math.random() * 1.1 + 0.5,
-          o: Math.random() * 0.6 + 0.3,
-          w: Math.random() * 0.5 - 0.25
-        });
+      flakes = Array.from({length: 45}, () => ({
+        x: Math.random() * snowCanvas.width,
+        y: Math.random() * snowCanvas.height,
+        r: Math.random() * 3 + 1,
+        d: Math.random() * 1 + 0.5
+      }));
+    }
+    window.addEventListener('resize', resizeSnow);
+    resizeSnow();
+    function drawSnow() {
+      sCtx.clearRect(0,0,snowCanvas.width,snowCanvas.height);
+      sCtx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+      sCtx.beginPath();
+      for(let f of flakes) {
+        sCtx.moveTo(f.x, f.y);
+        sCtx.arc(f.x, f.y, f.r, 0, Math.PI*2, true);
+        f.y += f.d;
+        f.x += Math.sin(f.y * 0.02) * 0.5;
+        if(f.y > snowCanvas.height) { f.y = -5; f.x = Math.random() * snowCanvas.width; }
       }
+      sCtx.fill();
+      requestAnimationFrame(drawSnow);
     }
+    drawSnow();
 
-    function renderSnow() {
-      sCtx.clearRect(0, 0, snowCanvas.width, snowCanvas.height);
-      for (let i = 0; i < flakes.length; i++) {
-        const f = flakes[i];
-        sCtx.beginPath();
-        sCtx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
-        sCtx.fillStyle = `rgba(255, 255, 255, ${f.o})`;
-        sCtx.fill();
-        f.y += f.d * 1.0;
-        f.x += f.w;
-        if (f.y > snowCanvas.height) {
-          f.y = -8;
-          f.x = Math.random() * snowCanvas.width;
-        }
-      }
-      requestAnimationFrame(renderSnow);
-    }
+    // --- ESTADO LOCAL ---
+    let myAvatar = '🎅';
+    let myName = '';
+    let isHost = false;
+    let roomCode = '';
+    let mqttClient = null;
 
-    function initLightsBar() {
-      const bar = document.getElementById('lightsBar');
-      const count = Math.ceil(window.innerWidth / 32);
-      bar.innerHTML = '';
-      for (let i = 0; i < count; i++) {
-        const li = document.createElement('li');
-        li.style.animationDelay = (Math.random() * 1.5).toFixed(2) + 's';
-        bar.appendChild(li);
-      }
-    }
-
-    /* ========================================================
-       AUTENTICACIÓN INICIAL
-       ======================================================== */
-    async function setupAuth() {
-      try {
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-          await signInWithCustomToken(auth, __initial_auth_token);
-        } else {
-          await signInAnonymously(auth);
-        }
-        myUser.id = auth.currentUser?.uid || 'user_' + Math.random().toString(36).substring(2, 9);
-      } catch (err) {
-        console.error("Auth error:", err);
-        myUser.id = 'user_' + Math.random().toString(36).substring(2, 9);
-      }
-    }
-
-    /* ========================================================
-       HELPERS DE SALA EN FIRESTORE (RULE 1 COMPLIANT)
-       ======================================================== */
-    function getRoomDocRef(code) {
-      // RULE 1: /artifacts/{appId}/public/data/{collectionName}/{docId}
-      return doc(db, 'artifacts', appId, 'public', 'data', 'partyRooms', code.toUpperCase().trim());
-    }
-
-    // Generador de códigos fáciles de escribir en móvil (4 letras)
-    function generateRoomCode() {
-      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-      let code = '';
-      for (let i = 0; i < 4; i++) {
-        code += chars.charAt(Math.floor(Math.random() * chars.length));
-      }
-      return code;
-    }
-
-    /* ========================================================
-       INICIALIZACIÓN DEL AVATAR PICKER
-       ======================================================== */
-    function renderAvatarPicker() {
-      const grid = document.getElementById('avatarPickerGrid');
-      grid.innerHTML = AVATARS.map(av => `
-        <button 
-          type="button" 
-          onclick="selectAvatar('${av}')" 
-          class="avatar-option text-2xl p-2 rounded-2xl border ${av === myUser.avatar ? 'border-amber-400 bg-amber-400/25 scale-105' : 'border-amber-400/20 bg-black/40'} active:scale-95 transition"
-        >
-          ${av}
-        </button>
-      `).join('');
-    }
-
-    window.selectAvatar = function(av) {
-      myUser.avatar = av;
-      renderAvatarPicker();
+    let gameState = {
+      players: [],        // [{ name, avatar }]
+      remaining: [],      // nombres restantes en la ruleta
+      currentOpener: null,// jugador abriendo regalo
+      scores: {},         // { [nombre]: { cat1:[], cat2:[], cat3:[], cat4:[] } }
+      step: 'lobby'       // 'lobby' | 'roulette' | 'voting' | 'results'
     };
 
-    /* ========================================================
-       CREAR Y UNIRSE A SALA
-       ======================================================== */
-    window.createNewRoom = async function() {
-      const name = document.getElementById('inputUserName').value.trim();
-      if (!name) {
-        showToast('⚠️ Escribe tu nombre para crear la sala');
-        document.getElementById('inputUserName').focus();
-        return;
-      }
+    let localRatings = { cat1: 5, cat2: 5, cat3: 5, cat4: 5 };
 
-      myUser.name = name;
-      myUser.isHost = true;
+    function setAvatar(av) {
+      myAvatar = av;
+      document.querySelectorAll('.avatar-btn').forEach(b => {
+        b.classList.toggle('selected', b.innerText === av);
+      });
+    }
 
-      const code = generateRoomCode();
-      currentRoomCode = code;
+    // --- MQTT EN TIEMPO REAL (SIN REGISTROS NI CLAVES) ---
+    function connectMqtt(code, callback) {
+      const clientId = 'xmas_' + Math.random().toString(16).substr(2, 8);
+      // Broker público seguro sobre WebSocket SSL
+      mqttClient = new Paho.MQTT.Client('broker.emqx.io', 8084, clientId);
 
-      const initialRoom = {
-        code: code,
-        hostId: myUser.id,
-        status: 'lobby', // lobby | roulette | winner_modal | voting | results
-        createdAt: new Date().toISOString(),
-        players: {
-          [myUser.id]: {
-            id: myUser.id,
-            name: myUser.name,
-            avatar: myUser.avatar,
-            isHost: true
-          }
-        },
-        remainingPlayerIds: [myUser.id],
-        completedPlayerIds: [],
-        currentTurn: null, // { targetId, targetName, spinAngle, winnerIndex }
-        votes: {} // { [targetId]: { [voterId]: { c1, c2, c3, c4, voterName } } }
+      mqttClient.onMessageArrived = (message) => {
+        try {
+          const payload = JSON.parse(message.payloadString);
+          handleNetworkMessage(payload);
+        } catch(e) { console.error(e); }
       };
 
-      try {
-        const ref = getRoomDocRef(code);
-        await setDoc(ref, initialRoom);
-        subscribeToRoom(code);
-        showToast(`🎉 ¡Sala ${code} creada!`);
-      } catch (e) {
-        console.error(e);
-        showToast('❌ Error creando la sala. Revisa tu conexión.');
-      }
-    };
-
-    window.joinExistingRoom = async function() {
-      const name = document.getElementById('inputUserName').value.trim();
-      const codeInput = document.getElementById('inputJoinCode').value.trim().toUpperCase();
-
-      if (!name) {
-        showToast('⚠️ Introduce tu nombre');
-        document.getElementById('inputUserName').focus();
-        return;
-      }
-      if (!codeInput || codeInput.length < 3) {
-        showToast('⚠️ Introduce el código de sala');
-        document.getElementById('inputJoinCode').focus();
-        return;
-      }
-
-      myUser.name = name;
-      myUser.isHost = false;
-
-      try {
-        const ref = getRoomDocRef(codeInput);
-        const snap = await getDoc(ref);
-
-        if (!snap.exists()) {
-          showToast('❌ Sala no encontrada. Comprueba el código');
-          return;
+      mqttClient.connect({
+        useSSL: true,
+        timeout: 5,
+        onSuccess: () => {
+          mqttClient.subscribe(`xmas_secret_santa/${code}/#`);
+          callback();
+        },
+        onFailure: (err) => {
+          alert("Error de conexión a internet. Revisa tu red.");
+          console.error(err);
         }
-
-        const data = snap.data();
-        currentRoomCode = codeInput;
-
-        // Añadir este jugador a players
-        const updatedPlayers = { ...data.players };
-        updatedPlayers[myUser.id] = {
-          id: myUser.id,
-          name: myUser.name,
-          avatar: myUser.avatar,
-          isHost: data.hostId === myUser.id
-        };
-
-        // Si la sala aún está en lobby, añadir a remainingPlayerIds
-        let updatedRemaining = Array.isArray(data.remainingPlayerIds) ? [...data.remainingPlayerIds] : [];
-        if (data.status === 'lobby' && !updatedRemaining.includes(myUser.id)) {
-          updatedRemaining.push(myUser.id);
-        }
-
-        await updateDoc(ref, {
-          players: updatedPlayers,
-          remainingPlayerIds: updatedRemaining
-        });
-
-        subscribeToRoom(codeInput);
-        showToast(`🎅 ¡Te has unido a la sala ${codeInput}!`);
-      } catch (err) {
-        console.error(err);
-        showToast('❌ Error al unirse a la sala.');
-      }
-    };
-
-    /* ========================================================
-       SINCRONIZACIÓN EN TIEMPO REAL CON FIRESTORE
-       ======================================================== */
-    function subscribeToRoom(code) {
-      if (roomUnsubscribe) roomUnsubscribe();
-
-      const ref = getRoomDocRef(code);
-      roomUnsubscribe = onSnapshot(ref, (docSnap) => {
-        if (!docSnap.exists()) {
-          showToast('⚠️ La sala fue cerrada.');
-          switchView('auth');
-          return;
-        }
-
-        const data = docSnap.data();
-        localRoomData = data;
-        myUser.isHost = (data.hostId === myUser.id);
-
-        syncUIState(data);
-      }, (error) => {
-        console.error("Firestore listener error:", error);
       });
     }
 
-    function syncUIState(data) {
-      // Cabecera
-      document.getElementById('roomCodeHeader').innerHTML = `SALA: <b class="text-amber-300 font-mono tracking-widest">${data.code}</b>`;
-      const roleBadge = document.getElementById('userRoleBadge');
-      roleBadge.classList.remove('hidden');
-      roleBadge.innerText = myUser.isHost ? '👑 Anfitrión' : 'Participante';
-
-      switch (data.status) {
-        case 'lobby':
-          switchView('lobby');
-          renderLobbyView(data);
-          break;
-        case 'roulette':
-          switchView('roulette');
-          renderRouletteView(data);
-          break;
-        case 'winner_modal':
-          switchView('roulette');
-          renderRouletteView(data);
-          renderWinnerModal(data);
-          break;
-        case 'voting':
-          switchView('voting');
-          renderVotingView(data);
-          break;
-        case 'results':
-          switchView('results');
-          renderResultsView(data);
-          break;
-      }
+    function sendNet(type, data = {}) {
+      if (!mqttClient) return;
+      const msg = new Paho.MQTT.Message(JSON.stringify({ type, data, sender: myName }));
+      msg.destinationName = `xmas_secret_santa/${roomCode}/stream`;
+      mqttClient.send(msg);
     }
 
-    /* ========================================================
-       VISTAS Y PANTALLAS
-       ======================================================== */
-    function switchView(viewName) {
-      ['auth', 'lobby', 'roulette', 'voting', 'results'].forEach(v => {
-        const el = document.getElementById(`view-${v}`);
-        if (el) el.classList.add('hidden');
-      });
-      document.getElementById('modalTurnWinner').classList.add('hidden');
-
-      const target = document.getElementById(`view-${viewName}`);
-      if (target) target.classList.remove('hidden');
-    }
-
-    /* ========================================================
-       FASE: LOBBY
-       ======================================================== */
-    function renderLobbyView(data) {
-      document.getElementById('displayLobbyCode').innerText = data.code;
-      const players = Object.values(data.players || {});
-      document.getElementById('lobbyCountBadge').innerText = players.length;
-
-      const listEl = document.getElementById('lobbyPlayersList');
-      listEl.innerHTML = players.map(p => `
-        <div class="flex items-center justify-between p-2.5 rounded-2xl bg-black/45 border ${p.id === myUser.id ? 'border-amber-400/60' : 'border-amber-400/20'} text-xs">
-          <div class="flex items-center gap-2.5">
-            <span class="text-2xl">${p.avatar || '🎁'}</span>
-            <div>
-              <span class="font-bold text-rose-100">${escapeHtml(p.name)}</span>
-              ${p.id === myUser.id ? '<span class="text-[10px] text-amber-300 ml-1 font-semibold">(Tú)</span>' : ''}
-            </div>
-          </div>
-          ${p.isHost ? '<span class="text-[10px] bg-amber-400/20 text-amber-300 border border-amber-300/40 px-2 py-0.5 rounded-full font-bold">👑 Anfitrión</span>' : ''}
-        </div>
-      `).join('');
-
-      const hostControls = document.getElementById('hostLobbyControls');
-      const waitingMsg = document.getElementById('lobbyWaitingMsg');
-      const btnStart = document.getElementById('btnStartGala');
-      const minNotice = document.getElementById('minPlayersNotice');
-
-      if (myUser.isHost) {
-        hostControls.classList.remove('hidden');
-        waitingMsg.classList.add('hidden');
-        const canStart = players.length >= 2;
-        btnStart.disabled = !canStart;
-        btnStart.className = `w-full py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 cursor-pointer ${canStart ? 'btn-gold' : 'bg-stone-700 text-stone-400 opacity-60 cursor-not-allowed'}`;
-        minNotice.style.display = canStart ? 'none' : 'block';
-      } else {
-        hostControls.classList.add('hidden');
-        waitingMsg.classList.remove('hidden');
-      }
-    }
-
-    window.startGameGala = async function() {
-      if (!localRoomData || !myUser.isHost) return;
-      const players = Object.values(localRoomData.players || {});
-      if (players.length < 2) {
-        showToast('⚠️ Se necesitan al menos 2 familiares conectados.');
-        return;
-      }
-
-      const allIds = players.map(p => p.id);
-      const ref = getRoomDocRef(currentRoomCode);
-      await updateDoc(ref, {
-        status: 'roulette',
-        remainingPlayerIds: allIds,
-        completedPlayerIds: [],
-        currentTurn: null
-      });
-    };
-
-    window.copyRoomCodeShare = function() {
-      if (!currentRoomCode) return;
-      const shareText = `🎄 ¡Únete a nuestro Amigo Invisible Familiar! Entra a la web e introduce el código de sala: ${currentRoomCode}`;
-      copyToClipboard(shareText);
-      showToast('📋 Código copiado. ¡Pégalo en el grupo de WhatsApp!');
-    };
-
-    /* ========================================================
-       FASE: RULETA SINCRONIZADA
-       ======================================================== */
-    const rCanvas = document.getElementById('syncedRouletteCanvas');
-    const rCtx = rCanvas.getContext('2d');
-
-    function getPendingPlayers() {
-      if (!localRoomData) return [];
-      const remaining = localRoomData.remainingPlayerIds || [];
-      return remaining.map(id => localRoomData.players[id]).filter(Boolean);
-    }
-
-    function renderRouletteView(data) {
-      const pending = getPendingPlayers();
-      const completed = data.completedPlayerIds || [];
-
-      document.getElementById('rouletteRemainingCount').innerText = pending.length;
-      document.getElementById('rouletteCompletedCount').innerText = completed.length;
-
-      // Pills de los pendientes
-      document.getElementById('roulettePendingPills').innerHTML = pending.map(p => `
-        <span class="px-2 py-0.5 rounded-xl bg-black/40 border border-amber-400/20 text-[10px] text-amber-200">
-          ${p.avatar} ${escapeHtml(p.name)}
-        </span>
-      `).join('');
-
-      // Dibujar canvas
-      drawWheelCanvas(pending, currentWheelAngle);
-
-      // Si la sala está esperando giro
-      const btnSpin = document.getElementById('btnSpinWheel');
-      if (data.status === 'roulette') {
-        if (data.currentTurn?.isSpinning) {
-          btnSpin.disabled = true;
-          btnSpin.classList.add('opacity-50');
-          document.getElementById('spinningBroadcastNotice').classList.remove('hidden');
-          // Iniciar animación si aún no se mueve
-          if (!isSpinningAnim) {
-            startClientSpinAnimation(data.currentTurn.targetAngle, data.currentTurn.targetId);
+    function handleNetworkMessage(msg) {
+      if (isHost) {
+        if (msg.type === 'PLAYER_JOIN') {
+          if (!gameState.players.some(p => p.name === msg.data.name)) {
+            gameState.players.push({ name: msg.data.name, avatar: msg.data.avatar });
+            gameState.remaining.push(msg.data.name);
+            gameState.scores[msg.data.name] = { cat1: [], cat2: [], cat3: [], cat4: [] };
+            syncState();
           }
-        } else {
-          btnSpin.disabled = false;
-          btnSpin.classList.remove('opacity-50');
-          document.getElementById('spinningBroadcastNotice').classList.add('hidden');
         }
+        if (msg.type === 'SUBMIT_VOTE') {
+          const target = gameState.currentOpener.name;
+          if (gameState.scores[target]) {
+            gameState.scores[target].cat1.push(msg.data.cat1);
+            gameState.scores[target].cat2.push(msg.data.cat2);
+            gameState.scores[target].cat3.push(msg.data.cat3);
+            gameState.scores[target].cat4.push(msg.data.cat4);
+          }
+        }
+      }
+
+      if (msg.type === 'STATE_UPDATE') {
+        gameState = msg.data;
+        renderState();
+      }
+
+      if (msg.type === 'SPIN_ACTION') {
+        runWheelAnimation(msg.data.winnerIndex, msg.data.finalRotation);
       }
     }
 
-    function drawWheelCanvas(people, angle) {
-      rCtx.clearRect(0, 0, rCanvas.width, rCanvas.height);
-      const cx = rCanvas.width / 2;
-      const cy = rCanvas.height / 2;
-      const radius = cx - 12;
+    function syncState() {
+      sendNet('STATE_UPDATE', gameState);
+    }
 
-      if (!people || people.length === 0) {
-        rCtx.save();
-        rCtx.fillStyle = '#0f2416';
-        rCtx.beginPath();
-        rCtx.arc(cx, cy, radius, 0, Math.PI * 2);
-        rCtx.fill();
-        rCtx.fillStyle = '#ffd166';
-        rCtx.font = 'bold 18px "Mountains of Christmas", cursive';
-        rCtx.textAlign = 'center';
-        rCtx.textBaseline = 'middle';
-        rCtx.fillText('¡Todos abrieron regalo! 🎄', cx, cy);
-        rCtx.restore();
-        return;
+    // --- ACCIONES DE SALA ---
+    function createRoom() {
+      const name = document.getElementById('player-name').value.trim();
+      if (!name) return alert("Por favor escribe tu nombre");
+      myName = name;
+      isHost = true;
+      roomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
+
+      connectMqtt(roomCode, () => {
+        gameState.players = [{ name: myName, avatar: myAvatar }];
+        gameState.remaining = [myName];
+        gameState.scores[myName] = { cat1: [], cat2: [], cat3: [], cat4: [] };
+        setupUIForGame();
+        syncState();
+      });
+    }
+
+    function joinRoom() {
+      const name = document.getElementById('player-name').value.trim();
+      const code = document.getElementById('room-input').value.trim().toUpperCase();
+      if (!name) return alert("Por favor escribe tu nombre");
+      if (!code) return alert("Introduce el código de la sala");
+      myName = name;
+      isHost = false;
+      roomCode = code;
+
+      connectMqtt(roomCode, () => {
+        setupUIForGame();
+        sendNet('PLAYER_JOIN', { name: myName, avatar: myAvatar });
+      });
+    }
+
+    function setupUIForGame() {
+      document.getElementById('screen-auth').classList.add('hidden');
+      document.getElementById('room-badge').classList.remove('hidden');
+      document.getElementById('room-code-display').innerText = roomCode;
+      document.getElementById('lobby-code-txt').innerText = roomCode;
+
+      if (isHost) {
+        document.getElementById('host-start-btn-wrap').classList.remove('hidden');
+        document.getElementById('host-spin-btn-wrap').classList.remove('hidden');
+        document.getElementById('host-next-wrap').classList.remove('hidden');
+        document.getElementById('guest-waiting-msg').classList.add('hidden');
+        document.getElementById('guest-spin-msg').classList.add('hidden');
+      }
+    }
+
+    function renderState() {
+      // 1. Render de lista en Lobby
+      const lobbyList = document.getElementById('lobby-list');
+      lobbyList.innerHTML = gameState.players.map(p => 
+        `<div class="player-pill">${p.avatar} ${p.name}</div>`
+      ).join('');
+
+      // 2. Pantallas según el paso
+      document.getElementById('screen-lobby').classList.toggle('hidden', gameState.step !== 'lobby');
+      document.getElementById('screen-roulette').classList.toggle('hidden', gameState.step !== 'roulette');
+      document.getElementById('screen-vote').classList.toggle('hidden', gameState.step !== 'voting');
+      document.getElementById('screen-results').classList.toggle('hidden', gameState.step !== 'results');
+
+      if (gameState.step === 'roulette') {
+        drawWheel();
       }
 
-      const slice = (Math.PI * 2) / people.length;
+      if (gameState.step === 'voting' && gameState.currentOpener) {
+        document.getElementById('voted-name').innerText = gameState.currentOpener.name;
+        document.getElementById('voted-avatar').innerText = gameState.currentOpener.avatar;
+      }
 
-      for (let i = 0; i < people.length; i++) {
-        const start = angle + (i * slice);
-        const end = start + slice;
-        rCtx.save();
-        rCtx.beginPath();
-        rCtx.moveTo(cx, cy);
-        rCtx.arc(cx, cy, radius, start, end);
-        rCtx.closePath();
-        rCtx.fillStyle = WHEEL_COLORS[i % WHEEL_COLORS.length];
-        rCtx.fill();
-        rCtx.lineWidth = 1.8;
-        rCtx.strokeStyle = 'rgba(255, 209, 102, 0.45)';
-        rCtx.stroke();
+      if (gameState.step === 'results') {
+        renderPodium();
+      }
+    }
+
+    function hostStartGame() {
+      if (gameState.players.length < 2) {
+        if(!confirm("Solo hay 1 participante en la sala. ¿Continuar igualmente?")) return;
+      }
+      gameState.step = 'roulette';
+      syncState();
+    }
+
+    // --- RULETA CANVAS ---
+    function drawWheel() {
+      const canvas = document.getElementById('wheel-canvas');
+      const ctx = canvas.getContext('2d');
+      const count = gameState.remaining.length;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (count === 0) return;
+      const angle = (2 * Math.PI) / count;
+      const colors = ['#c41e3a', '#165b33', '#f8b229', '#0d3b66', '#d9534f', '#2a9d8f'];
+
+      for (let i = 0; i < count; i++) {
+        ctx.beginPath();
+        ctx.fillStyle = colors[i % colors.length];
+        ctx.moveTo(140, 140);
+        ctx.arc(140, 140, 140, i * angle, (i + 1) * angle);
+        ctx.lineTo(140, 140);
+        ctx.fill();
 
         // Texto
-        rCtx.translate(cx, cy);
-        rCtx.rotate(start + slice / 2);
-        rCtx.textAlign = 'right';
-        rCtx.textBaseline = 'middle';
-        rCtx.fillStyle = '#ffffff';
-        rCtx.shadowColor = 'rgba(0,0,0,0.8)';
-        rCtx.shadowBlur = 4;
-        const fontSz = people.length > 8 ? 12 : 14;
-        rCtx.font = `bold ${fontSz}px "Outfit", sans-serif`;
-        let label = (people[i].avatar ? people[i].avatar + ' ' : '') + people[i].name;
-        if (label.length > 13) label = label.substring(0, 11) + '…';
-        rCtx.fillText(label, radius - 16, 0);
-        rCtx.restore();
+        ctx.save();
+        ctx.translate(140, 140);
+        ctx.rotate(i * angle + angle / 2);
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 14px Outfit';
+        ctx.textAlign = 'right';
+        ctx.fillText(gameState.remaining[i], 120, 5);
+        ctx.restore();
       }
-
-      // Aro dorado y centro
-      rCtx.save();
-      rCtx.beginPath();
-      rCtx.arc(cx, cy, radius, 0, Math.PI * 2);
-      rCtx.lineWidth = 8;
-      rCtx.strokeStyle = '#ffd166';
-      rCtx.stroke();
-
-      // Botón central de la ruleta
-      rCtx.beginPath();
-      rCtx.arc(cx, cy, 28, 0, Math.PI * 2);
-      rCtx.fillStyle = '#3c060b';
-      rCtx.fill();
-      rCtx.lineWidth = 3;
-      rCtx.strokeStyle = '#ffd166';
-      rCtx.stroke();
-      rCtx.fillStyle = '#ffd166';
-      rCtx.font = '20px sans-serif';
-      rCtx.textAlign = 'center';
-      rCtx.textBaseline = 'middle';
-      rCtx.fillText('🎄', cx, cy + 1);
-      rCtx.restore();
     }
 
-    window.triggerWheelSpin = async function() {
-      if (isSpinningAnim || !localRoomData) return;
-      const pending = getPendingPlayers();
-      if (pending.length === 0) {
-        showToast('Todos han abierto regalo');
-        return;
-      }
+    function hostSpinWheel() {
+      const winnerIndex = Math.floor(Math.random() * gameState.remaining.length);
+      const sliceDeg = 360 / gameState.remaining.length;
+      // Posicionar bajo el puntero superior
+      const finalRotation = 360 * 5 + (360 - (winnerIndex * sliceDeg + sliceDeg / 2)) - 90;
 
-      // Elegir ganador aleatoriamente de la lista pendiente
-      const winnerIndex = Math.floor(Math.random() * pending.length);
-      const chosenPerson = pending[winnerIndex];
+      sendNet('SPIN_ACTION', { winnerIndex, finalRotation });
+    }
 
-      // Calcular el ángulo exacto para que el puntero (a las 12 en punto / 270 grados = 1.5 * PI) coincida
-      const slice = (Math.PI * 2) / pending.length;
-      // pointerPos = (1.5 * PI - targetAngle) % (2 * PI) = winnerIndex * slice + slice/2
-      const targetSectorMiddle = winnerIndex * slice + (slice / 2);
-      // Añadir de 5 a 8 vueltas completas para emoción
-      const fullSpins = (5 + Math.floor(Math.random() * 3)) * (Math.PI * 2);
-      const finalAngle = (Math.PI * 1.5) - targetSectorMiddle + fullSpins;
+    function runWheelAnimation(winnerIdx, rotation) {
+      const wheel = document.getElementById('wheel-canvas');
+      wheel.style.transform = `rotate(${rotation}deg)`;
 
-      // Escribir en Firestore para que TODOS los móviles giren al unísono
-      const ref = getRoomDocRef(currentRoomCode);
-      await updateDoc(ref, {
-        currentTurn: {
-          isSpinning: true,
-          targetId: chosenPerson.id,
-          targetName: chosenPerson.name,
-          targetAvatar: chosenPerson.avatar,
-          targetAngle: finalAngle,
-          winnerIndex: winnerIndex,
-          startedAt: Date.now()
+      setTimeout(() => {
+        confetti({ particleCount: 70, spread: 60 });
+        const winnerName = gameState.remaining[winnerIdx];
+        const winnerObj = gameState.players.find(p => p.name === winnerName);
+
+        if (isHost) {
+          gameState.currentOpener = winnerObj;
+          gameState.remaining = gameState.remaining.filter(n => n !== winnerName);
+          setTimeout(() => {
+            gameState.step = 'voting';
+            // Reset visual
+            wheel.style.transition = 'none';
+            wheel.style.transform = 'rotate(0deg)';
+            setTimeout(() => wheel.style.transition = 'transform 4s cubic-bezier(0.15, 0.9, 0.2, 1)', 50);
+            syncState();
+          }, 2000);
         }
+        // Preparar pantalla de voto
+        document.getElementById('vote-form').classList.remove('hidden');
+        document.getElementById('vote-feedback').classList.add('hidden');
+        resetStars();
+      }, 4200);
+    }
+
+    // --- ENCUENTAS & ESTRELLAS ---
+    function rate(cat, val) {
+      localRatings[cat] = val;
+      const group = document.querySelector(`.stars[data-cat="${cat}"]`);
+      Array.from(group.children).forEach((star, idx) => {
+        star.classList.toggle('active', idx < val);
       });
-    };
-
-    function startClientSpinAnimation(targetFinalAngle, winnerId) {
-      isSpinningAnim = true;
-      const startAngle = currentWheelAngle;
-      const deltaAngle = targetFinalAngle - (startAngle % (Math.PI * 2));
-      const duration = 5200; // 5.2 segundos de suspense
-      const startTime = performance.now();
-
-      function step(now) {
-        const elapsed = now - startTime;
-        const progress = Math.min(elapsed / duration, 1);
-        // Easing cúbico hacia el frenado
-        const easeOut = 1 - Math.pow(1 - progress, 3.5);
-
-        currentWheelAngle = startAngle + (deltaAngle * easeOut);
-
-        // Sonido de ticks
-        const pending = getPendingPlayers();
-        if (pending.length > 0) {
-          const slice = (Math.PI * 2) / pending.length;
-          const norm = ((Math.PI * 1.5 - currentWheelAngle) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
-          const idx = Math.floor(norm / slice);
-          if (idx !== lastTickIndex) {
-            playWheelTick();
-            lastTickIndex = idx;
-          }
-        }
-
-        drawWheelCanvas(pending, currentWheelAngle);
-
-        if (progress < 1) {
-          requestAnimationFrame(step);
-        } else {
-          isSpinningAnim = false;
-          // Solo el host actualiza el estado formal a winner_modal en Firestore tras la animación
-          if (myUser.isHost) {
-            const ref = getRoomDocRef(currentRoomCode);
-            updateDoc(ref, {
-              status: 'winner_modal',
-              'currentTurn.isSpinning': false
-            });
-          }
-        }
-      }
-
-      requestAnimationFrame(step);
     }
 
-    /* ========================================================
-       FASE: MODAL GANADOR
-       ======================================================== */
-    function renderWinnerModal(data) {
-      const turn = data.currentTurn;
-      if (!turn) return;
+    function resetStars() {
+      ['cat1','cat2','cat3','cat4'].forEach(cat => rate(cat, 5));
+    }
 
-      playJingleWinner();
-      triggerConfetti();
+    function sendVote() {
+      sendNet('SUBMIT_VOTE', localRatings);
+      document.getElementById('vote-form').classList.add('hidden');
+      document.getElementById('vote-feedback').classList.remove('hidden');
+    }
 
-      document.getElementById('winnerAnnounceName').innerText = `${turn.targetAvatar || '🎁'} ${turn.targetName}`;
-      document.getElementById('modalTurnWinner').classList.remove('hidden');
-
-      const btnProceed = document.getElementById('btnProceedVoteModal');
-      if (myUser.isHost) {
-        btnProceed.classList.remove('hidden');
-        btnProceed.innerText = 'Abrir Votación para la Familia ⭐';
+    function hostNextTurn() {
+      if (gameState.remaining.length > 0) {
+        gameState.step = 'roulette';
       } else {
-        btnProceed.classList.remove('hidden');
-        btnProceed.innerText = 'Ir a la Pantalla de Votación ⭐';
+        gameState.step = 'results';
       }
+      syncState();
     }
 
-    window.proceedToVotingPhase = async function() {
-      document.getElementById('modalTurnWinner').classList.add('hidden');
-      if (myUser.isHost) {
-        const ref = getRoomDocRef(currentRoomCode);
-        await updateDoc(ref, {
-          status: 'voting'
-        });
-      }
-    };
+    // --- RESULTADOS & PODIO ---
+    function renderPodium() {
+      const list = document.getElementById('podium-list');
+      const ranked = gameState.players.map(p => {
+        const sc = gameState.scores[p.name];
+        const all = [...(sc.cat1 || []), ...(sc.cat2 || []), ...(sc.cat3 || []), ...(sc.cat4 || [])];
+        const avg = all.length ? (all.reduce((a,b)=>a+b, 0) / all.length).toFixed(1) : '5.0';
+        return { ...p, avg: parseFloat(avg) };
+      }).sort((a,b) => b.avg - a.avg);
 
-    /* ========================================================
-       FASE: VOTACIÓN EN DIRECTO (ENCUESTA 4 ASPECTOS)
-       ======================================================== */
-    function renderVotingView(data) {
-      const turn = data.currentTurn;
-      if (!turn) return;
-
-      document.getElementById('votingTargetTitle').innerText = `${turn.targetAvatar || '🎁'} ${turn.targetName}`;
-
-      const targetId = turn.targetId;
-      const isTargetMe = (targetId === myUser.id);
-
-      const openingCard = document.getElementById('openingGiftNoticeCard');
-      const formCard = document.getElementById('votingFormCard');
-
-      // Votos recibidos en este turno
-      const roomVotesForTarget = (data.votes && data.votes[targetId]) ? data.votes[targetId] : {};
-      const voteCount = Object.keys(roomVotesForTarget).length;
-      // Excluyendo a la persona que abre (los demás votan)
-      const totalEligibleVoters = Math.max(Object.keys(data.players || {}).length - 1, 1);
-
-      document.getElementById('liveVotesProgressText').innerText = `${voteCount} de ${totalEligibleVoters}`;
-      document.getElementById('selfVotesCountDisplay').innerText = `${voteCount} de ${totalEligibleVoters}`;
-
-      if (isTargetMe) {
-        openingCard.classList.remove('hidden');
-        formCard.classList.add('hidden');
-      } else {
-        openingCard.classList.add('hidden');
-        formCard.classList.remove('hidden');
-
-        // Comprobar si ya votó este usuario
-        const hasVoted = Boolean(roomVotesForTarget[myUser.id]);
-        const btnSubmit = document.getElementById('btnSubmitVote');
-        const submittedNotice = document.getElementById('voteSubmittedNotice');
-
-        if (hasVoted) {
-          btnSubmit.classList.add('hidden');
-          submittedNotice.classList.remove('hidden');
-        } else {
-          btnSubmit.classList.remove('hidden');
-          submittedNotice.classList.add('hidden');
-          renderInteractiveStars();
-        }
-      }
-
-      // Botón Siguiente turno
-      const btnNext = document.getElementById('btnNextTurnOrEnd');
-      const btnNextLabel = document.getElementById('btnNextTurnLabel');
-      
-      const isLastParticipant = (data.remainingPlayerIds.length <= 1);
-      btnNextLabel.innerText = isLastParticipant ? 'Ver Resultados Finales 🏆' : 'Siguiente Turno';
-
-      // Solo anfitrión o cualquiera cuando todos voten puede avanzar
-      if (myUser.isHost || voteCount >= totalEligibleVoters) {
-        btnNext.classList.remove('hidden');
-      } else {
-        btnNext.classList.add('hidden');
-      }
-    }
-
-    function renderInteractiveStars() {
-      ['c1', 'c2', 'c3', 'c4'].forEach(cat => {
-        const container = document.querySelector(`[data-cat="${cat}"]`);
-        if (!container) return;
-        let html = '';
-        for (let star = 1; star <= 5; star++) {
-          const filled = star <= myCurrentRatings[cat];
-          html += `
-            <button 
-              type="button" 
-              onclick="setStarRating('${cat}', ${star})" 
-              class="star-btn p-1 focus:outline-none"
-            >
-              <i class="fa-solid fa-star ${filled ? 'text-amber-400' : 'text-stone-600'}"></i>
-            </button>
-          `;
-        }
-        container.innerHTML = html;
-        document.getElementById(`badge${cat.toUpperCase()}`).innerText = `${myCurrentRatings[cat]}/5`;
-      });
-    }
-
-    window.setStarRating = function(cat, val) {
-      myCurrentRatings[cat] = val;
-      playWheelTick();
-      renderInteractiveStars();
-    };
-
-    window.submitMyVote = async function() {
-      if (!localRoomData || !localRoomData.currentTurn) return;
-      const targetId = localRoomData.currentTurn.targetId;
-
-      const ref = getRoomDocRef(currentRoomCode);
-      const voteData = {
-        voterId: myUser.id,
-        voterName: myUser.name,
-        c1: myCurrentRatings.c1,
-        c2: myCurrentRatings.c2,
-        c3: myCurrentRatings.c3,
-        c4: myCurrentRatings.c4,
-        timestamp: Date.now()
-      };
-
-      // Guardar voto indexado por targetId y voterId
-      const currentVotes = localRoomData.votes || {};
-      const targetVotes = currentVotes[targetId] || {};
-      targetVotes[myUser.id] = voteData;
-      currentVotes[targetId] = targetVotes;
-
-      await updateDoc(ref, {
-        votes: currentVotes
-      });
-
-      showToast('⭐ ¡Tu valoración ha sido enviada!');
-    };
-
-    window.finishCurrentTurnVote = async function() {
-      if (!localRoomData || !localRoomData.currentTurn) return;
-      const targetId = localRoomData.currentTurn.targetId;
-
-      // Quitar de remainingPlayerIds y añadir a completedPlayerIds
-      const updatedRemaining = (localRoomData.remainingPlayerIds || []).filter(id => id !== targetId);
-      const updatedCompleted = [...(localRoomData.completedPlayerIds || [])];
-      if (!updatedCompleted.includes(targetId)) {
-        updatedCompleted.push(targetId);
-      }
-
-      const isAllDone = (updatedRemaining.length === 0);
-      const nextStatus = isAllDone ? 'results' : 'roulette';
-
-      const ref = getRoomDocRef(currentRoomCode);
-      await updateDoc(ref, {
-        status: nextStatus,
-        remainingPlayerIds: updatedRemaining,
-        completedPlayerIds: updatedCompleted,
-        currentTurn: null
-      });
-
-      // Resetear estrellas para la siguiente ronda
-      myCurrentRatings = { c1: 5, c2: 5, c3: 5, c4: 5 };
-    };
-
-    /* ========================================================
-       FASE: RESULTADOS FINALES & PREMIOS DE GALA
-       ======================================================== */
-    function calculatePlayerAverages(playerId, roomData) {
-      const allVotes = (roomData.votes && roomData.votes[playerId]) ? Object.values(roomData.votes[playerId]) : [];
-      if (allVotes.length === 0) {
-        return { count: 0, avg1: 5, avg2: 5, avg3: 5, avg4: 5, total: 5.0 };
-      }
-
-      let s1 = 0, s2 = 0, s3 = 0, s4 = 0;
-      allVotes.forEach(v => {
-        s1 += Number(v.c1 || 5);
-        s2 += Number(v.c2 || 5);
-        s3 += Number(v.c3 || 5);
-        s4 += Number(v.c4 || 5);
-      });
-
-      const c = allVotes.length;
-      const avg1 = Number((s1 / c).toFixed(1));
-      const avg2 = Number((s2 / c).toFixed(1));
-      const avg3 = Number((s3 / c).toFixed(1));
-      const avg4 = Number((s4 / c).toFixed(1));
-      const total = Number(((avg1 + avg2 + avg3 + avg4) / 4).toFixed(2));
-
-      return { count: c, avg1, avg2, avg3, avg4, total };
-    }
-
-    function renderResultsView(data) {
-      playFanfarePodium();
-      triggerConfetti();
-
-      const players = Object.values(data.players || {});
-      const ranked = players.map(p => ({
-        ...p,
-        stats: calculatePlayerAverages(p.id, data)
-      }));
-
-      // Ordenar por media total descendente
-      ranked.sort((a, b) => b.stats.total - a.stats.total);
-
-      if (ranked.length === 0) return;
-
-      // 1. Premios por categoría
-      const bestC1 = [...ranked].sort((a, b) => b.stats.avg1 - a.stats.avg1)[0];
-      const bestC2 = [...ranked].sort((a, b) => b.stats.avg2 - a.stats.avg2)[0];
-      const bestC3 = [...ranked].sort((a, b) => b.stats.avg3 - a.stats.avg3)[0];
-      const bestC4 = [...ranked].sort((a, b) => b.stats.avg4 - a.stats.avg4)[0];
-
-      document.getElementById('awardsCategoryGrid').innerHTML = `
-        <div class="bg-black/45 border border-rose-400/30 p-2.5 rounded-2xl flex items-center gap-2">
-          <span class="text-2xl">🎯</span>
-          <div class="overflow-hidden">
-            <span class="text-[9px] uppercase font-bold text-rose-300 block">Más Acertado</span>
-            <span class="font-bold text-white text-xs truncate block">${escapeHtml(bestC1.name)}</span>
-            <span class="text-[10px] text-amber-300 font-bold">${bestC1.stats.avg1} ⭐</span>
+      const medals = ['🥇', '🥈', '🥉'];
+      list.innerHTML = ranked.map((p, i) => `
+        <div class="podium-item">
+          <div>
+            <span style="font-size:1.3rem;">${medals[i] || '🎖️'}</span>
+            <strong>${p.avatar} ${p.name}</strong>
           </div>
-        </div>
-
-        <div class="bg-black/45 border border-emerald-400/30 p-2.5 rounded-2xl flex items-center gap-2">
-          <span class="text-2xl">🎀</span>
-          <div class="overflow-hidden">
-            <span class="text-[9px] uppercase font-bold text-emerald-300 block">Mejor Envoltorio</span>
-            <span class="font-bold text-white text-xs truncate block">${escapeHtml(bestC2.name)}</span>
-            <span class="text-[10px] text-amber-300 font-bold">${bestC2.stats.avg2} ⭐</span>
-          </div>
-        </div>
-
-        <div class="bg-black/45 border border-amber-400/30 p-2.5 rounded-2xl flex items-center gap-2">
-          <span class="text-2xl">💶</span>
-          <div class="overflow-hidden">
-            <span class="text-[9px] uppercase font-bold text-amber-300 block">Precio Justo</span>
-            <span class="font-bold text-white text-xs truncate block">${escapeHtml(bestC3.name)}</span>
-            <span class="text-[10px] text-amber-300 font-bold">${bestC3.stats.avg3} ⭐</span>
-          </div>
-        </div>
-
-        <div class="bg-black/45 border border-purple-400/30 p-2.5 rounded-2xl flex items-center gap-2">
-          <span class="text-2xl">✨</span>
-          <div class="overflow-hidden">
-            <span class="text-[9px] uppercase font-bold text-purple-300 block">Más Original</span>
-            <span class="font-bold text-white text-xs truncate block">${escapeHtml(bestC4.name)}</span>
-            <span class="text-[10px] text-amber-300 font-bold">${bestC4.stats.avg4} ⭐</span>
-          </div>
-        </div>
-      `;
-
-      // 2. Podio Top 3
-      const first = ranked[0];
-      const second = ranked[1] || null;
-      const third = ranked[2] || null;
-
-      let podiumHtml = '';
-      if (second) {
-        podiumHtml += `
-          <div class="flex-1 flex flex-col items-center max-w-[100px]">
-            <span class="text-2xl">${second.avatar}</span>
-            <span class="text-[11px] font-bold text-white truncate w-full mt-0.5">${escapeHtml(second.name)}</span>
-            <span class="text-[10px] text-amber-300 font-bold mb-1">${second.stats.total} ⭐</span>
-            <div class="w-full h-20 bg-gradient-to-t from-slate-700 to-slate-500 rounded-t-2xl flex items-center justify-center font-serif text-xl font-black text-white shadow-md border-t border-slate-300">
-              2º
-            </div>
-          </div>
-        `;
-      }
-      if (first) {
-        podiumHtml += `
-          <div class="flex-1 flex flex-col items-center max-w-[115px]">
-            <span class="text-2xl">👑</span>
-            <span class="text-3xl">${first.avatar}</span>
-            <span class="text-xs font-black text-amber-300 truncate w-full mt-0.5">${escapeHtml(first.name)}</span>
-            <span class="text-[11px] text-amber-200 font-bold mb-1">${first.stats.total} ⭐</span>
-            <div class="w-full h-28 bg-gradient-to-t from-amber-600 via-yellow-400 to-amber-200 rounded-t-2xl flex flex-col items-center justify-center font-serif text-2xl font-black text-amber-950 shadow-xl border-t-2 border-amber-100">
-              1º
-            </div>
-          </div>
-        `;
-      }
-      if (third) {
-        podiumHtml += `
-          <div class="flex-1 flex flex-col items-center max-w-[100px]">
-            <span class="text-2xl">${third.avatar}</span>
-            <span class="text-[11px] font-bold text-white truncate w-full mt-0.5">${escapeHtml(third.name)}</span>
-            <span class="text-[10px] text-amber-300 font-bold mb-1">${third.stats.total} ⭐</span>
-            <div class="w-full h-16 bg-gradient-to-t from-amber-900 to-amber-700 rounded-t-2xl flex items-center justify-center font-serif text-lg font-black text-amber-200 shadow-md border-t border-amber-500">
-              3º
-            </div>
-          </div>
-        `;
-      }
-      document.getElementById('podiumVisualRow').innerHTML = podiumHtml;
-
-      // 3. Filas completas de resultados
-      document.getElementById('resultsRankingRows').innerHTML = ranked.map((p, idx) => `
-        <div class="p-2.5 rounded-2xl bg-black/45 border border-amber-400/20 text-xs">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2">
-              <span class="font-bold text-amber-300">#${idx + 1}</span>
-              <span class="text-lg">${p.avatar}</span>
-              <span class="font-bold text-white">${escapeHtml(p.name)}</span>
-            </div>
-            <div class="text-amber-300 font-black text-sm">
-              ${p.stats.total} <span class="text-xs">⭐</span>
-            </div>
-          </div>
-          <div class="grid grid-cols-4 gap-1 text-[10px] text-rose-200/70 pt-1.5 mt-1 border-t border-white/5">
-            <div>🎯 ${p.stats.avg1}</div>
-            <div>🎀 ${p.stats.avg2}</div>
-            <div>💶 ${p.stats.avg3}</div>
-            <div>✨ ${p.stats.avg4}</div>
+          <div style="font-size:1.1rem; color:var(--xmas-gold); font-weight:800;">
+            ${p.avg} ★
           </div>
         </div>
       `).join('');
     }
 
-    window.shareWhatsAppResults = function() {
-      if (!localRoomData) return;
-      const players = Object.values(localRoomData.players || {});
-      const ranked = players.map(p => ({
-        ...p,
-        stats: calculatePlayerAverages(p.id, localRoomData)
-      })).sort((a, b) => b.stats.total - a.stats.total);
-
-      let text = `🎄 *RESULTADOS AMIGO INVISIBLE FAMILIAR* 🎁\n\n`;
-      ranked.forEach((p, i) => {
-        const medal = i === 0 ? '🥇' : (i === 1 ? '🥈' : (i === 2 ? '🥉' : '▫️'));
-        text += `${medal} *${p.name}*: ${p.stats.total}/5 ⭐\n`;
+    function shareWhatsApp() {
+      let txt = `🎄 *Premios Gala Amigo Invisible* 🎁\n\n`;
+      gameState.players.forEach(p => {
+        const sc = gameState.scores[p.name];
+        const all = [...sc.cat1, ...sc.cat2, ...sc.cat3, ...sc.cat4];
+        const avg = all.length ? (all.reduce((a,b)=>a+b, 0) / all.length).toFixed(1) : '5.0';
+        txt += `${p.avatar} *${p.name}*: ${avg} ★\n`;
       });
-      text += `\n🎅 ¡Feliz Navidad a toda la familia! 🎄`;
-
-      copyToClipboard(text);
-      showToast('📋 ¡Resumen copiado para WhatsApp!');
-    };
-
-    window.restartPartyLobby = async function() {
-      if (!localRoomData || !myUser.isHost) {
-        showToast('Solo el anfitrión puede reiniciar la sala');
-        return;
-      }
-      const ref = getRoomDocRef(currentRoomCode);
-      const allIds = Object.keys(localRoomData.players || {});
-      await updateDoc(ref, {
-        status: 'lobby',
-        remainingPlayerIds: allIds,
-        completedPlayerIds: [],
-        currentTurn: null,
-        votes: {}
-      });
-    };
-
-    /* ========================================================
-       UTILIDADES: CONFETTI, CLIPBOARD & TOAST
-       ======================================================== */
-    function triggerConfetti() {
-      try {
-        confetti({
-          particleCount: 80,
-          spread: 70,
-          origin: { y: 0.65 },
-          colors: ['#ffd166', '#ff1744', '#00e676', '#ffffff']
-        });
-      } catch (e) {}
+      txt += `\n¡Felices Fiestas a toda la familia! 🎅`;
+      window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(txt)}`, '_blank');
     }
-
-    function showToast(msg) {
-      const toast = document.getElementById('toastPopup');
-      const text = document.getElementById('toastMsg');
-      text.innerText = msg;
-      toast.classList.remove('translate-y-20', 'opacity-0');
-      toast.classList.add('translate-y-0', 'opacity-100');
-
-      setTimeout(() => {
-        toast.classList.remove('translate-y-0', 'opacity-100');
-        toast.classList.add('translate-y-20', 'opacity-0');
-      }, 2500);
-    }
-
-    function copyToClipboard(text) {
-      const ta = document.createElement('textarea');
-      ta.value = text;
-      ta.style.position = 'fixed';
-      ta.style.opacity = '0';
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      document.body.removeChild(ta);
-    }
-
-    function escapeHtml(str) {
-      if (!str) return '';
-      return str.replace(/[&<>"']/g, m => ({
-        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
-      }[m]));
-    }
-
-    /* ========================================================
-       CICLO DE VIDA INICIAL
-       ======================================================== */
-    window.addEventListener('load', async () => {
-      initSnow();
-      renderSnow();
-      initLightsBar();
-      renderAvatarPicker();
-      await setupAuth();
-    });
-
-    window.addEventListener('resize', () => {
-      initSnow();
-      initLightsBar();
-      if (localRoomData && !document.getElementById('view-roulette').classList.contains('hidden')) {
-        drawWheelCanvas(getPendingPlayers(), currentWheelAngle);
-      }
-    });
   </script>
 </body>
 </html>
