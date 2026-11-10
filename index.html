@@ -15,7 +15,7 @@
       --xmas-dark-red: #7a0c1e;
       --xmas-green: #165b33;
       --xmas-gold: #f8b229;
-      --card-bg: rgba(22, 91, 51, 0.9);
+      --card-bg: rgba(22, 91, 51, 0.92);
     }
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     body {
@@ -37,39 +37,39 @@
     }
     .container {
       width: 100%;
-      max-width: 520px;
+      max-width: 500px;
       padding: 16px;
+      padding-top: 55px; /* Espacio para que no choque con el botón de música */
       z-index: 2;
       display: flex;
       flex-direction: column;
       align-items: center;
     }
-    /* Estilo expandido cuando se ejecuta en PC/TV */
     body.is-host-mode .container {
-      max-width: 800px;
+      max-width: 820px;
     }
     .audio-toggle-btn {
       position: fixed;
-      top: 12px;
+      top: 10px;
       right: 12px;
       z-index: 99;
-      background: rgba(0,0,0,0.6);
+      background: rgba(0,0,0,0.7);
       border: 2px solid var(--xmas-gold);
       color: #fff;
       border-radius: 50%;
-      width: 44px;
-      height: 44px;
+      width: 42px;
+      height: 42px;
       font-size: 1.2rem;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.5);
     }
     #status-toast {
       position: fixed;
       bottom: 12px;
-      background: rgba(0,0,0,0.85);
+      background: rgba(0,0,0,0.9);
       border: 1px solid var(--xmas-gold);
       color: var(--xmas-gold);
       padding: 8px 16px;
@@ -79,22 +79,22 @@
       z-index: 100;
       display: none;
     }
-    header { text-align: center; margin-bottom: 16px; }
+    header { text-align: center; margin-bottom: 14px; }
     h1 {
       font-family: 'Mountains of Christmas', cursive;
-      font-size: 3rem;
+      font-size: 2.8rem;
       color: var(--xmas-gold);
       text-shadow: 0 0 12px rgba(248, 178, 41, 0.6);
       line-height: 1.1;
     }
     .badge-room {
-      background: rgba(0,0,0,0.5);
+      background: rgba(0,0,0,0.6);
       border: 2px solid var(--xmas-gold);
       padding: 8px 18px;
       border-radius: 24px;
       font-size: 1.1rem;
       display: inline-block;
-      margin-top: 8px;
+      margin-top: 6px;
     }
     .card {
       background: var(--card-bg);
@@ -102,7 +102,7 @@
       -webkit-backdrop-filter: blur(12px);
       border: 2px solid rgba(248, 178, 41, 0.4);
       border-radius: 24px;
-      padding: 22px;
+      padding: 20px;
       width: 100%;
       box-shadow: 0 12px 30px rgba(0,0,0,0.5);
       margin-bottom: 16px;
@@ -143,17 +143,36 @@
     .btn-pc {
       background: linear-gradient(135deg, #0984e3, #0652dd);
       color: #fff;
-      margin-bottom: 15px;
+      margin-bottom: 12px;
       border: 2px solid rgba(255,255,255,0.3);
     }
-    .btn-reconnect {
-      background: rgba(248, 178, 41, 0.2);
+    .reconnect-box {
+      background: rgba(248, 178, 41, 0.18);
       border: 2px dashed var(--xmas-gold);
-      color: #fff;
-      margin-bottom: 15px;
-      font-size: 0.95rem;
+      border-radius: 16px;
       padding: 12px;
-      border-radius: 14px;
+      margin-bottom: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .btn-reconnect {
+      background: var(--xmas-gold);
+      color: #3b1b00;
+      font-size: 0.95rem;
+      padding: 10px;
+      border-radius: 12px;
+      font-weight: 700;
+      border: none;
+      cursor: pointer;
+    }
+    .btn-clear-session {
+      background: transparent;
+      color: rgba(255,255,255,0.7);
+      border: none;
+      font-size: 0.8rem;
+      text-decoration: underline;
+      cursor: pointer;
     }
 
     .avatars {
@@ -194,9 +213,9 @@
     }
     .wheel-box {
       position: relative;
-      width: 320px;
-      height: 320px;
-      margin: 20px auto;
+      width: 310px;
+      height: 310px;
+      margin: 18px auto;
     }
     #wheel-canvas {
       width: 100%;
@@ -287,27 +306,27 @@
     <div id="screen-auth" class="card">
       <h2 style="margin-bottom: 14px; color: var(--xmas-gold);">¡Bienvenidos! 🎁</h2>
 
-      <div id="reconnect-banner" class="hidden">
-        <button class="btn btn-reconnect" onclick="reconnectPreviousSession()">
-          🔄 Volver a entrar a la Sala <span id="saved-room-code"></span> (<span id="saved-role-label"></span>)
+      <div id="reconnect-banner" class="reconnect-box hidden">
+        <span style="font-size:0.9rem;">Partida anterior detectada:</span>
+        <button class="btn-reconnect" onclick="reconnectPreviousSession()">
+          🔄 Reanudar Sala <span id="saved-room-code"></span> (<span id="saved-role-label"></span>)
         </button>
+        <button class="btn-clear-session" onclick="clearSession()">Empezar desde cero / Olvidar sala</button>
       </div>
 
-      <!-- BOTÓN PARA EL PC DE LA SALA -->
       <button id="btn-create-host" class="btn btn-pc" onclick="createHostRoom()">
         🖥️ Modo Pantalla Central / Host (PC)
       </button>
-      <p style="font-size: 0.8rem; margin-top: -8px; margin-bottom: 15px; opacity: 0.8;">
-        (Pulsa aquí en el ordenador o TV del salón para moderar la partida)
+      <p style="font-size: 0.8rem; margin-top: -6px; margin-bottom: 14px; opacity: 0.8;">
+        (Pulsa aquí en el PC o TV para moderar la gala y ver la ruleta gigante)
       </p>
 
       <div style="display: flex; align-items: center; margin: 15px 0;">
         <hr style="flex:1; border:0; border-top:1px solid rgba(255,255,255,0.25)">
-        <span style="padding: 0 10px; font-size: 0.85rem; font-weight: 700; color: var(--xmas-gold);">O ENTRA COMO JUGADOR DESDE EL MÓVIL</span>
+        <span style="padding: 0 10px; font-size: 0.85rem; font-weight: 700; color: var(--xmas-gold);">O ENTRA COMO JUGADOR (MÓVIL)</span>
         <hr style="flex:1; border:0; border-top:1px solid rgba(255,255,255,0.25)">
       </div>
 
-      <!-- FORMULARIO PARA LOS MÓVILES -->
       <p style="font-size: 0.85rem; margin-bottom: 8px;">Elige tu icono festivo:</p>
       <div class="avatars">
         <button class="avatar-btn selected" onclick="setAvatar('🎅')">🎅</button>
@@ -340,36 +359,32 @@
       </p>
 
       <div style="margin: 24px 0; min-height: 90px;">
-        <h4 style="font-size: 1.1rem; margin-bottom: 10px;">Jugadores en la sala (<span id="players-count">0</span>):</h4>
+        <h4 style="font-size: 1.1rem; margin-bottom: 10px;">Jugadores conectados (<span id="players-count">0</span>):</h4>
         <div id="lobby-list" style="display: flex; flex-wrap: wrap; justify-content: center;"></div>
       </div>
 
-      <!-- Solo en PC (Host) -->
       <div id="host-start-btn-wrap" class="hidden">
         <button class="btn btn-gold" style="font-size: 1.3rem;" onclick="hostStartGame()">🎉 ¡Empezar la Gala Navideña!</button>
       </div>
 
-      <!-- Solo en móviles -->
       <p id="guest-waiting-msg" class="hidden" style="font-style: italic; font-size: 1rem; opacity: 0.85;">
-        Conectado correctamente. Esperando a que el Host inicie en la pantalla central...
+        Conectado correctamente. Esperando a que el PC inicie la partida...
       </p>
     </div>
 
     <!-- PANTALLA 3: RULETA -->
     <div id="screen-roulette" class="card hidden">
-      <h3 style="color:var(--xmas-gold); font-size: 1.7rem;">¿A quién le toca abrir regalo? 🎁</h3>
+      <h3 style="color:var(--xmas-gold); font-size: 1.7rem;">¿A quién le toca regalo? 🎁</h3>
 
       <div class="wheel-box">
         <div class="wheel-pointer">🔻</div>
-        <canvas id="wheel-canvas" width="320" height="320"></canvas>
+        <canvas id="wheel-canvas" width="310" height="310"></canvas>
       </div>
 
-      <!-- Solo en PC (Host) -->
       <div id="host-spin-btn-wrap" class="hidden">
         <button id="spin-btn" class="btn btn-gold" style="font-size: 1.3rem;" onclick="hostSpinWheel()">🎰 Girar Ruleta</button>
       </div>
 
-      <!-- Solo en móviles -->
       <div id="guest-roulette-box" class="hidden">
         <p style="font-size: 1.1rem; margin-top: 10px;">👀 ¡Mira a la pantalla central para ver a quién le toca!</p>
       </div>
@@ -380,10 +395,9 @@
       <div style="margin-bottom: 14px;">
         <span style="font-size: 3rem;" id="voted-avatar">🎁</span>
         <h3 id="voted-name" style="color:var(--xmas-gold); font-size: 1.8rem; margin-top: 4px;">---</h3>
-        <p style="font-size: 1rem; opacity: 0.9;">está abriendo su regalo ahora mismo.</p>
+        <p style="font-size: 1rem; opacity: 0.9;">abriendo su regalo</p>
       </div>
 
-      <!-- Formulario para los jugadores en móvil (excepto el que abre) -->
       <div id="vote-form" class="hidden">
         <div class="survey-group">
           <div class="survey-title">🎯 Regalo Acertado</div>
@@ -434,16 +448,14 @@
 
       <div id="vote-feedback" class="hidden" style="padding: 16px 0;">
         <h4 style="font-size: 1.2rem; color: #55efc4;">¡Voto Registrado! 🎄</h4>
-        <p style="font-size: 0.95rem; margin-top: 6px; opacity:0.85;">Esperando a que todos terminen y el Host continúe...</p>
+        <p style="font-size: 0.95rem; margin-top: 6px; opacity:0.85;">Esperando al siguiente regalo...</p>
       </div>
 
-      <!-- Para el jugador que está abriendo el regalo -->
       <div id="opener-notice" class="hidden" style="padding: 20px 0;">
         <h4 style="font-size: 1.3rem; color: var(--xmas-gold);">¡Es tu momento! 🎁✨</h4>
-        <p style="font-size: 1rem; margin-top: 6px; opacity:0.9;">Muestra tu regalo a toda la familia. Ellos te están puntuando.</p>
+        <p style="font-size: 1rem; margin-top: 6px; opacity:0.9;">Muestra tu regalo a todos. La familia te está puntuando.</p>
       </div>
 
-      <!-- Panel de control en el PC (Host) -->
       <div id="host-vote-panel" class="hidden">
         <div class="vote-tracker-box">
           <div style="font-weight:700; color:var(--xmas-gold); margin-bottom: 8px; font-size:1.1rem; display:flex; justify-content:space-between;">
@@ -475,25 +487,21 @@
   </div>
 
   <script>
-    // --- NOTIFICACIÓN FLOTANTE ---
-    function showToast(msg, duration = 3000) {
+    function showToast(msg, duration = 3500) {
       const t = document.getElementById('status-toast');
       t.innerText = msg;
       t.style.display = 'block';
       setTimeout(() => { t.style.display = 'none'; }, duration);
     }
 
-    // --- SCREEN WAKE LOCK ---
     let wakeLock = null;
     async function requestWakeLock() {
       try {
-        if ('wakeLock' in navigator) {
-          wakeLock = await navigator.wakeLock.request('screen');
-        }
+        if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen');
       } catch (err) {}
     }
 
-    // --- MOTOR DE AUDIO ---
+    // --- AUDIO ---
     let audioCtx = null;
     let isMusicPlaying = false;
     let musicInterval = null;
@@ -614,7 +622,7 @@
       }
     }
 
-    // --- EFECTO NIEVE ---
+    // --- NIEVE CANVAS ---
     const snowCanvas = document.getElementById('snow-canvas');
     const sCtx = snowCanvas.getContext('2d');
     let flakes = [];
@@ -646,29 +654,28 @@
     }
     drawSnow();
 
-    // --- VARIABLES DE PARTIDA ---
+    // --- ESTADO Y RED ---
     let myAvatar = '🎅';
     let myName = '';
-    let isHost = false; // TRUE solo en el PC
+    let isHost = false;
     let roomCode = '';
     let peer = null;
     let hostConn = null;
     let clientConns = [];
     let heartbeatInterval = null;
+    let joinTimeoutTimer = null;
 
-    // Estado central: El host NO está en players ni en remaining
     let gameState = {
-      players: [],        // [{ name, avatar }] (Solo los familiares con móviles)
-      remaining: [],      // Nombres de los que faltan por abrir regalo
+      players: [],
+      remaining: [],
       currentOpener: null,
-      scores: {},         // { [nombre]: { cat1:[], cat2:[], cat3:[], cat4:[] } }
+      scores: {},
       votedInCurrentRound: [],
       step: 'lobby'
     };
 
     let localRatings = { cat1: 5, cat2: 5, cat3: 5, cat4: 5 };
 
-    // --- PERSISTENCIA Y RECONEXIÓN ---
     function saveSession() {
       localStorage.setItem('xmas_session', JSON.stringify({
         roomCode,
@@ -679,6 +686,13 @@
       if (isHost) {
         localStorage.setItem('xmas_host_state_' + roomCode, JSON.stringify(gameState));
       }
+    }
+
+    function clearSession() {
+      localStorage.removeItem('xmas_session');
+      document.getElementById('reconnect-banner').classList.add('hidden');
+      document.getElementById('player-name').value = '';
+      document.getElementById('room-input').value = '';
     }
 
     function checkPreviousSession() {
@@ -733,24 +747,10 @@
           if (isHost) broadcast('PING', {});
           else if (hostConn && hostConn.open) hostConn.send({ type: 'PING', data: {} });
         }
-      }, 10000);
+      }, 9000);
     }
 
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') {
-        requestWakeLock();
-        if (peer && !peer.destroyed && peer.disconnected) {
-          showToast("🔄 Recuperando conexión...");
-          peer.reconnect();
-        }
-        if (!isHost && hostConn && !hostConn.open && roomCode) {
-          showToast("🔄 Reconectando con el PC Host...");
-          connectToHost();
-        }
-      }
-    });
-
-    // --- MODO 1: CREAR HOST CENTRAL (EN PC / TV) ---
+    // --- MODO PC (HOST) ---
     function createHostRoom() {
       playClickBell();
       requestWakeLock();
@@ -771,7 +771,7 @@
       const btn = document.getElementById('btn-create-host');
       if (btn) {
         btn.disabled = true;
-        btn.innerText = "Iniciando Host...";
+        btn.innerText = "Registrando sala en la nube...";
       }
 
       saveSession();
@@ -782,6 +782,7 @@
       }
 
       peer = new Peer(peerId, {
+        debug: 1,
         config: {
           iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
@@ -791,6 +792,10 @@
       });
 
       peer.on('open', () => {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerText = "🖥️ Modo Pantalla Central / Host (PC)";
+        }
         setupGameView();
         renderState();
         startHeartbeat();
@@ -826,25 +831,30 @@
       });
     }
 
-    // --- MODO 2: ENTRAR COMO JUGADOR (MÓVIL) ---
+    // --- MODO JUGADOR (MÓVIL) ---
     function joinRoom() {
       playClickBell();
       requestWakeLock();
       const name = document.getElementById('player-name').value.trim();
       const code = document.getElementById('room-input').value.trim();
-      if (!name) return alert("Escribe tu nombre");
-      if (!code) return alert("Escribe el código de sala que aparece en el PC");
+      if (!name) return alert("Por favor, escribe tu nombre");
+      if (!code) return alert("Escribe el código de sala que aparece en la pantalla del PC");
 
       myName = name;
       isHost = false;
       roomCode = code;
       saveSession();
 
+      const btn = document.getElementById('btn-join');
+      btn.disabled = true;
+      btn.innerText = "Conectando al PC...";
+
       if (peer && !peer.destroyed) {
         try { peer.destroy(); } catch(e){}
       }
 
       peer = new Peer({
+        debug: 1,
         config: {
           iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
@@ -862,22 +872,30 @@
         if (peer && !peer.destroyed) peer.reconnect();
       });
 
-      peer.on('error', () => {
-        const btn = document.getElementById('btn-join');
+      peer.on('error', (err) => {
+        clearTimeout(joinTimeoutTimer);
         btn.disabled = false;
         btn.innerText = "🎄 Unirme a la Partida";
+        alert("Error de red: no se pudo iniciar el servicio en este teléfono.");
       });
     }
 
     function connectToHost() {
       const btn = document.getElementById('btn-join');
-      btn.disabled = true;
-      btn.innerText = "Conectando al PC...";
+
+      // TIMEOUT DE SEGURIDAD (6 SEGUNDOS)
+      clearTimeout(joinTimeoutTimer);
+      joinTimeoutTimer = setTimeout(() => {
+        if (document.getElementById('screen-lobby').classList.contains('hidden')) {
+          btn.disabled = false;
+          btn.innerText = "🎄 Unirme a la Partida";
+          alert("No se pudo conectar a la sala " + roomCode + ".\n\nComprueba que el PC tiene la pantalla abierta mostrando este código exacto.");
+        }
+      }, 6500);
 
       hostConn = peer.connect('ami-invis-' + roomCode, { reliable: true });
 
       hostConn.on('open', () => {
-        setupGameView();
         hostConn.send({
           type: 'JOIN',
           data: { name: myName, avatar: myAvatar }
@@ -885,6 +903,7 @@
       });
 
       hostConn.on('data', (msg) => {
+        clearTimeout(joinTimeoutTimer);
         handleClientIncoming(msg);
       });
 
@@ -893,6 +912,7 @@
       });
 
       hostConn.on('error', () => {
+        clearTimeout(joinTimeoutTimer);
         btn.disabled = false;
         btn.innerText = "🎄 Unirme a la Partida";
         alert("No se encontró la sala " + roomCode + " en el PC central.");
@@ -920,7 +940,6 @@
       }
     }
 
-    // --- MENSAJERÍA ---
     function broadcast(type, data) {
       clientConns = clientConns.filter(c => c.open);
       clientConns.forEach(c => {
@@ -964,6 +983,8 @@
       if (msg.type === 'PING') return;
 
       if (msg.type === 'SYNC') {
+        // En cuanto recibimos el primer estado sincronizado del Host, pasamos de pantalla
+        setupGameView();
         gameState = msg.data;
         renderState();
       } else if (msg.type === 'SPIN') {
@@ -971,38 +992,31 @@
       }
     }
 
-    // --- RENDERIZADO VISUAL SEGÚN EL ROL ---
     function renderState() {
-      // 1. Contador y lista de jugadores en espera
       document.getElementById('players-count').innerText = gameState.players.length;
       document.getElementById('lobby-list').innerHTML = gameState.players.map(p => 
         `<div class="player-pill">${p.avatar} ${p.name}</div>`
       ).join('');
 
-      // 2. Transición entre pantallas
       document.getElementById('screen-lobby').classList.toggle('hidden', gameState.step !== 'lobby');
       document.getElementById('screen-roulette').classList.toggle('hidden', gameState.step !== 'roulette');
       document.getElementById('screen-vote').classList.toggle('hidden', gameState.step !== 'voting');
       document.getElementById('screen-results').classList.toggle('hidden', gameState.step !== 'results');
 
-      // 3. Pantalla de ruleta
       if (gameState.step === 'roulette') {
         drawWheel();
       }
 
-      // 4. Pantalla de votación
       if (gameState.step === 'voting' && gameState.currentOpener) {
         document.getElementById('voted-name').innerText = gameState.currentOpener.name;
         document.getElementById('voted-avatar').innerText = gameState.currentOpener.avatar;
 
         if (isHost) {
-          // El Host PC no vota: solo ve el panel de control y seguimiento
           document.getElementById('vote-form').classList.add('hidden');
           document.getElementById('vote-feedback').classList.add('hidden');
           document.getElementById('opener-notice').classList.add('hidden');
           renderVoteTracker();
         } else {
-          // Comportamiento en los móviles de los jugadores:
           const isMeOpener = (myName === gameState.currentOpener.name);
           const alreadyVoted = gameState.votedInCurrentRound.includes(myName);
 
@@ -1022,13 +1036,11 @@
         }
       }
 
-      // 5. Podio final
       if (gameState.step === 'results') {
         renderPodium();
       }
     }
 
-    // Panel de seguimiento para el PC Host
     function renderVoteTracker() {
       const votersList = document.getElementById('vote-tracker-list');
       const openerName = gameState.currentOpener ? gameState.currentOpener.name : '';
@@ -1051,7 +1063,6 @@
       }).join('');
     }
 
-    // --- ACCIONES EXCLUSIVAS DEL HOST (PC) ---
     function hostStartGame() {
       if (gameState.players.length < 2) {
         if (!confirm("Solo hay " + gameState.players.length + " jugador en la sala. ¿Iniciar de todos modos?")) return;
@@ -1130,7 +1141,6 @@
       renderState();
     }
 
-    // --- RULETA CANVAS ---
     function drawWheel() {
       const canvas = document.getElementById('wheel-canvas');
       const ctx = canvas.getContext('2d');
@@ -1144,23 +1154,22 @@
       for (let i = 0; i < count; i++) {
         ctx.beginPath();
         ctx.fillStyle = colors[i % colors.length];
-        ctx.moveTo(160, 160);
-        ctx.arc(160, 160, 160, i * angle, (i + 1) * angle);
-        ctx.lineTo(160, 160);
+        ctx.moveTo(155, 155);
+        ctx.arc(155, 155, 155, i * angle, (i + 1) * angle);
+        ctx.lineTo(155, 155);
         ctx.fill();
 
         ctx.save();
-        ctx.translate(160, 160);
+        ctx.translate(155, 155);
         ctx.rotate(i * angle + angle / 2);
         ctx.fillStyle = '#fff';
         ctx.font = 'bold 15px Outfit';
         ctx.textAlign = 'right';
-        ctx.fillText(gameState.remaining[i], 140, 5);
+        ctx.fillText(gameState.remaining[i], 135, 5);
         ctx.restore();
       }
     }
 
-    // --- ACCIONES EN LOS MÓVILES (JUGADORES) ---
     function rate(cat, val) {
       playStarBell(val);
       localRatings[cat] = val;
@@ -1183,7 +1192,6 @@
       document.getElementById('vote-feedback').classList.remove('hidden');
     }
 
-    // --- RESULTADOS & PODIO ---
     function renderPodium() {
       playFanfare();
       const list = document.getElementById('podium-list');
