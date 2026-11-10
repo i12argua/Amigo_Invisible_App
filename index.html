@@ -7,8 +7,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Mountains+of+Christmas:wght@700&display=swap" rel="stylesheet">
-  <!-- Paho MQTT para sincronización gratuita e instantánea -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+  <!-- PeerJS (WebRTC directo entre navegadores, puerto 443 estándar) -->
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <!-- Confeti -->
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
   <style>
@@ -17,8 +17,7 @@
       --xmas-dark-red: #7a0c1e;
       --xmas-green: #165b33;
       --xmas-gold: #f8b229;
-      --snow-white: #fefefe;
-      --card-bg: rgba(22, 91, 51, 0.75);
+      --card-bg: rgba(22, 91, 51, 0.85);
     }
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     body {
@@ -26,7 +25,6 @@
       background: radial-gradient(circle at center, #900d1e 0%, #3e040b 100%);
       color: #fff;
       min-height: 100vh;
-      overflow-x: hidden;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -41,30 +39,27 @@
     }
     .container {
       width: 100%;
-      max-width: 480px;
+      max-width: 460px;
       padding: 16px;
       z-index: 2;
       display: flex;
       flex-direction: column;
       align-items: center;
     }
-    header {
-      text-align: center;
-      margin-bottom: 20px;
-    }
+    header { text-align: center; margin-bottom: 16px; }
     h1 {
       font-family: 'Mountains of Christmas', cursive;
-      font-size: 2.8rem;
+      font-size: 2.7rem;
       color: var(--xmas-gold);
       text-shadow: 0 0 10px rgba(248, 178, 41, 0.6);
       line-height: 1.1;
     }
     .badge-room {
-      background: rgba(0,0,0,0.4);
+      background: rgba(0,0,0,0.5);
       border: 1px solid var(--xmas-gold);
       padding: 6px 14px;
       border-radius: 20px;
-      font-size: 0.9rem;
+      font-size: 0.95rem;
       display: inline-block;
       margin-top: 8px;
     }
@@ -105,11 +100,12 @@
       align-items: center;
       justify-content: center;
       gap: 10px;
-      transition: transform 0.1s, box-shadow 0.2s;
+      transition: transform 0.1s, opacity 0.2s;
     }
     .btn:active { transform: scale(0.97); }
-    .btn-gold { background: linear-gradient(135deg, #f8b229, #d99214); color: #431f00; box-shadow: 0 6px 16px rgba(248, 178, 41, 0.4); }
-    .btn-red { background: linear-gradient(135deg, #e62244, #a3142c); color: #fff; box-shadow: 0 6px 16px rgba(230, 34, 68, 0.4); margin-top: 10px; }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .btn-gold { background: linear-gradient(135deg, #f8b229, #d99214); color: #431f00; }
+    .btn-red { background: linear-gradient(135deg, #e62244, #a3142c); color: #fff; margin-top: 10px; }
     .avatars {
       display: flex;
       justify-content: center;
@@ -133,19 +129,18 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      background: rgba(0,0,0,0.3);
-      border: 1px solid rgba(255,255,255,0.2);
+      background: rgba(0,0,0,0.35);
+      border: 1px solid rgba(255,255,255,0.25);
       padding: 6px 12px;
       border-radius: 20px;
       margin: 4px;
       font-weight: 600;
       font-size: 0.95rem;
     }
-    /* Ruleta */
     .wheel-box {
       position: relative;
-      width: 280px;
-      height: 280px;
+      width: 270px;
+      height: 270px;
       margin: 15px auto;
     }
     #wheel-canvas {
@@ -157,18 +152,15 @@
     }
     .wheel-pointer {
       position: absolute;
-      top: -12px;
+      top: -14px;
       left: 50%;
       transform: translateX(-50%);
       font-size: 2rem;
       z-index: 10;
-      filter: drop-shadow(0 4px 6px rgba(0,0,0,0.5));
     }
-    /* Estrellas */
     .survey-group {
-      margin-bottom: 16px;
-      text-align: left;
-      background: rgba(0,0,0,0.2);
+      margin-bottom: 14px;
+      background: rgba(0,0,0,0.25);
       padding: 10px 14px;
       border-radius: 14px;
     }
@@ -181,19 +173,20 @@
     .stars {
       display: flex;
       justify-content: space-between;
-      max-width: 200px;
+      max-width: 210px;
     }
     .star {
-      font-size: 1.8rem;
-      color: rgba(255,255,255,0.3);
+      font-size: 2rem;
+      color: rgba(255,255,255,0.25);
       cursor: pointer;
+      user-select: none;
     }
     .star.active { color: var(--xmas-gold); }
     .podium-item {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      background: rgba(0,0,0,0.25);
+      background: rgba(0,0,0,0.3);
       padding: 12px 16px;
       border-radius: 14px;
       margin-bottom: 8px;
@@ -210,11 +203,10 @@
       <div id="room-badge" class="badge-room hidden">Sala: <strong id="room-code-display">---</strong></div>
     </header>
 
-    <!-- PANTALLA 1: ENTRADA / CREAR SALA -->
+    <!-- PANTALLA 1: ACCESO / CREACIÓN -->
     <div id="screen-auth" class="card">
       <h2 style="margin-bottom: 12px; text-align: center;">¡Bienvenidos! 🎁</h2>
       
-      <label style="font-size: 0.85rem; font-weight: 600;">ELIGE TU PERSONAJE:</label>
       <div class="avatars">
         <button class="avatar-btn selected" onclick="setAvatar('🎅')">🎅</button>
         <button class="avatar-btn" onclick="setAvatar('🤶')">🤶</button>
@@ -223,9 +215,9 @@
         <button class="avatar-btn" onclick="setAvatar('🧝')">🧝</button>
       </div>
 
-      <input type="text" id="player-name" placeholder="Tu nombre o apodo" maxlength="15">
+      <input type="text" id="player-name" placeholder="Tu nombre" maxlength="15" autocomplete="off">
 
-      <button class="btn btn-gold" onclick="createRoom()">👑 Crear Nueva Sala</button>
+      <button id="btn-create" class="btn btn-gold" onclick="createRoom()">👑 Crear Nueva Sala</button>
 
       <div style="display: flex; align-items: center; margin: 15px 0;">
         <hr style="flex:1; border:0; border-top:1px solid rgba(255,255,255,0.2)">
@@ -233,19 +225,19 @@
         <hr style="flex:1; border:0; border-top:1px solid rgba(255,255,255,0.2)">
       </div>
 
-      <input type="text" id="room-input" placeholder="CÓDIGO (Ej: NAVIDAD)" style="text-transform: uppercase;">
-      <button class="btn btn-red" onclick="joinRoom()">🎄 Unirme a la Sala</button>
+      <input type="text" id="room-input" placeholder="CÓDIGO (Ej: 4281)" style="text-transform: uppercase;" autocomplete="off">
+      <button id="btn-join" class="btn btn-red" onclick="joinRoom()">🎄 Unirme a la Sala</button>
     </div>
 
-    <!-- PANTALLA 2: LOBBY DE ESPERA -->
+    <!-- PANTALLA 2: LOBBY -->
     <div id="screen-lobby" class="card hidden">
       <h3 style="text-align:center; color: var(--xmas-gold);">Sala de Espera</h3>
-      <p style="text-align: center; font-size: 0.85rem; margin-top: 4px; opacity: 0.9;">
-        Dile a la familia que use el código: <b id="lobby-code-txt" style="font-size: 1.2rem; color: #fff;"></b>
+      <p style="text-align: center; font-size: 0.9rem; margin-top: 6px;">
+        Código de la sala: <strong id="lobby-code-txt" style="font-size: 1.4rem; color: #fff; background: rgba(0,0,0,0.4); padding: 2px 10px; border-radius: 8px;"></strong>
       </p>
 
       <div style="margin: 20px 0; min-height: 80px;">
-        <h4 style="font-size: 0.9rem; margin-bottom: 8px;">Participantes unidos:</h4>
+        <h4 style="font-size: 0.9rem; margin-bottom: 8px;">Familiares conectados:</h4>
         <div id="lobby-list" style="display: flex; flex-wrap: wrap;"></div>
       </div>
 
@@ -259,12 +251,10 @@
 
     <!-- PANTALLA 3: RULETA -->
     <div id="screen-roulette" class="card hidden" style="text-align:center;">
-      <h3 style="color:var(--xmas-gold);">¿Quién abre su regalo? 🎁</h3>
-      <p style="font-size: 0.85rem; opacity: 0.9;">¡Que ruede la magia de la Navidad!</p>
-
+      <h3 style="color:var(--xmas-gold);">¿A quién le toca? 🎁</h3>
       <div class="wheel-box">
         <div class="wheel-pointer">🔻</div>
-        <canvas id="wheel-canvas" width="280" height="280"></canvas>
+        <canvas id="wheel-canvas" width="270" height="270"></canvas>
       </div>
 
       <div id="host-spin-btn-wrap" class="hidden">
@@ -278,62 +268,62 @@
     <!-- PANTALLA 4: VOTACIONES -->
     <div id="screen-vote" class="card hidden">
       <div style="text-align:center; margin-bottom: 12px;">
-        <span style="font-size: 2.5rem;" id="voted-avatar">🎁</span>
-        <h3 id="voted-name" style="color:var(--xmas-gold); font-size: 1.5rem;">Nombre</h3>
-        <p style="font-size: 0.85rem;">está abriendo su regalo ahora mismo.</p>
+        <span style="font-size: 2.4rem;" id="voted-avatar">🎁</span>
+        <h3 id="voted-name" style="color:var(--xmas-gold); font-size: 1.5rem;">---</h3>
+        <p style="font-size: 0.85rem;">abriendo su regalo</p>
       </div>
 
       <div id="vote-form">
         <div class="survey-group">
           <div class="survey-title">🎯 Regalo Acertado</div>
           <div class="stars" data-cat="cat1">
-            <span class="star" onclick="rate('cat1', 1)">★</span>
-            <span class="star" onclick="rate('cat1', 2)">★</span>
-            <span class="star" onclick="rate('cat1', 3)">★</span>
-            <span class="star" onclick="rate('cat1', 4)">★</span>
-            <span class="star" onclick="rate('cat1', 5)">★</span>
+            <span class="star active" onclick="rate('cat1', 1)">★</span>
+            <span class="star active" onclick="rate('cat1', 2)">★</span>
+            <span class="star active" onclick="rate('cat1', 3)">★</span>
+            <span class="star active" onclick="rate('cat1', 4)">★</span>
+            <span class="star active" onclick="rate('cat1', 5)">★</span>
           </div>
         </div>
 
         <div class="survey-group">
-          <div class="survey-title">🎀 Envoltorio Original / Currado</div>
+          <div class="survey-title">🎀 Envoltorio Original</div>
           <div class="stars" data-cat="cat2">
-            <span class="star" onclick="rate('cat2', 1)">★</span>
-            <span class="star" onclick="rate('cat2', 2)">★</span>
-            <span class="star" onclick="rate('cat2', 3)">★</span>
-            <span class="star" onclick="rate('cat2', 4)">★</span>
-            <span class="star" onclick="rate('cat2', 5)">★</span>
+            <span class="star active" onclick="rate('cat2', 1)">★</span>
+            <span class="star active" onclick="rate('cat2', 2)">★</span>
+            <span class="star active" onclick="rate('cat2', 3)">★</span>
+            <span class="star active" onclick="rate('cat2', 4)">★</span>
+            <span class="star active" onclick="rate('cat2', 5)">★</span>
           </div>
         </div>
 
         <div class="survey-group">
-          <div class="survey-title">💰 Precio Acordado</div>
+          <div class="survey-title">💰 Precio Acertado</div>
           <div class="stars" data-cat="cat3">
-            <span class="star" onclick="rate('cat3', 1)">★</span>
-            <span class="star" onclick="rate('cat3', 2)">★</span>
-            <span class="star" onclick="rate('cat3', 3)">★</span>
-            <span class="star" onclick="rate('cat3', 4)">★</span>
-            <span class="star" onclick="rate('cat3', 5)">★</span>
+            <span class="star active" onclick="rate('cat3', 1)">★</span>
+            <span class="star active" onclick="rate('cat3', 2)">★</span>
+            <span class="star active" onclick="rate('cat3', 3)">★</span>
+            <span class="star active" onclick="rate('cat3', 4)">★</span>
+            <span class="star active" onclick="rate('cat3', 5)">★</span>
           </div>
         </div>
 
         <div class="survey-group">
-          <div class="survey-title">💡 Originalidad del Regalo</div>
+          <div class="survey-title">💡 Regalo Original</div>
           <div class="stars" data-cat="cat4">
-            <span class="star" onclick="rate('cat4', 1)">★</span>
-            <span class="star" onclick="rate('cat4', 2)">★</span>
-            <span class="star" onclick="rate('cat4', 3)">★</span>
-            <span class="star" onclick="rate('cat4', 4)">★</span>
-            <span class="star" onclick="rate('cat4', 5)">★</span>
+            <span class="star active" onclick="rate('cat4', 1)">★</span>
+            <span class="star active" onclick="rate('cat4', 2)">★</span>
+            <span class="star active" onclick="rate('cat4', 3)">★</span>
+            <span class="star active" onclick="rate('cat4', 4)">★</span>
+            <span class="star active" onclick="rate('cat4', 5)">★</span>
           </div>
         </div>
 
         <button id="send-vote-btn" class="btn btn-gold" onclick="sendVote()">⭐ Enviar Mi Puntuación</button>
       </div>
 
-      <div id="vote-feedback" class="hidden" style="text-align:center; padding: 20px 0;">
-        <h4>¡Voto registrado! 🎄</h4>
-        <p style="font-size: 0.9rem; margin-top: 6px; opacity:0.8;">Esperando a que todos terminen de puntuar...</p>
+      <div id="vote-feedback" class="hidden" style="text-align:center; padding: 15px 0;">
+        <h4>¡Voto Enviado! 🎄</h4>
+        <p style="font-size: 0.9rem; margin-top: 6px; opacity:0.8;">Esperando a que el anfitrión pase al siguiente...</p>
       </div>
 
       <div id="host-next-wrap" class="hidden" style="margin-top: 15px;">
@@ -341,17 +331,17 @@
       </div>
     </div>
 
-    <!-- PANTALLA 5: RESULTADOS Y PODIO -->
+    <!-- PANTALLA 5: RESULTADOS -->
     <div id="screen-results" class="card hidden">
       <h2 style="text-align:center; color:var(--xmas-gold); font-family:'Mountains of Christmas'; font-size:2.4rem;">
-        🏆 Premios Amigo Invisible
+        🏆 Resultados Finales
       </h2>
-      <p style="text-align:center; font-size: 0.85rem; margin-bottom: 16px;">¡Todos han abierto su regalo!</p>
+      <p style="text-align:center; font-size: 0.85rem; margin-bottom: 16px;">¡Todos han abierto sus regalos!</p>
 
       <div id="podium-list"></div>
 
       <button class="btn btn-gold" style="margin-top: 15px;" onclick="shareWhatsApp()">
-        📲 Compartir en WhatsApp
+        📲 Compartir por WhatsApp
       </button>
     </div>
   </div>
@@ -364,7 +354,7 @@
     function resizeSnow() {
       snowCanvas.width = window.innerWidth;
       snowCanvas.height = window.innerHeight;
-      flakes = Array.from({length: 45}, () => ({
+      flakes = Array.from({length: 40}, () => ({
         x: Math.random() * snowCanvas.width,
         y: Math.random() * snowCanvas.height,
         r: Math.random() * 3 + 1,
@@ -375,7 +365,7 @@
     resizeSnow();
     function drawSnow() {
       sCtx.clearRect(0,0,snowCanvas.width,snowCanvas.height);
-      sCtx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+      sCtx.fillStyle = 'rgba(255, 255, 255, 0.85)';
       sCtx.beginPath();
       for(let f of flakes) {
         sCtx.moveTo(f.x, f.y);
@@ -389,19 +379,21 @@
     }
     drawSnow();
 
-    // --- ESTADO LOCAL ---
+    // --- VARIABLES DE JUEGO ---
     let myAvatar = '🎅';
     let myName = '';
     let isHost = false;
     let roomCode = '';
-    let mqttClient = null;
+    let peer = null;
+    let hostConn = null;
+    let clientConns = [];
 
     let gameState = {
-      players: [],        // [{ name, avatar }]
-      remaining: [],      // nombres restantes en la ruleta
-      currentOpener: null,// jugador abriendo regalo
-      scores: {},         // { [nombre]: { cat1:[], cat2:[], cat3:[], cat4:[] } }
-      step: 'lobby'       // 'lobby' | 'roulette' | 'voting' | 'results'
+      players: [],
+      remaining: [],
+      currentOpener: null,
+      scores: {},
+      step: 'lobby'
     };
 
     let localRatings = { cat1: 5, cat2: 5, cat3: 5, cat4: 5 };
@@ -413,108 +405,96 @@
       });
     }
 
-    // --- MQTT EN TIEMPO REAL (SIN REGISTROS NI CLAVES) ---
-    function connectMqtt(code, callback) {
-      const clientId = 'xmas_' + Math.random().toString(16).substr(2, 8);
-      // Broker público seguro sobre WebSocket SSL
-      mqttClient = new Paho.MQTT.Client('broker.emqx.io', 8084, clientId);
-
-      mqttClient.onMessageArrived = (message) => {
-        try {
-          const payload = JSON.parse(message.payloadString);
-          handleNetworkMessage(payload);
-        } catch(e) { console.error(e); }
-      };
-
-      mqttClient.connect({
-        useSSL: true,
-        timeout: 5,
-        onSuccess: () => {
-          mqttClient.subscribe(`xmas_secret_santa/${code}/#`);
-          callback();
-        },
-        onFailure: (err) => {
-          alert("Error de conexión a internet. Revisa tu red.");
-          console.error(err);
-        }
-      });
-    }
-
-    function sendNet(type, data = {}) {
-      if (!mqttClient) return;
-      const msg = new Paho.MQTT.Message(JSON.stringify({ type, data, sender: myName }));
-      msg.destinationName = `xmas_secret_santa/${roomCode}/stream`;
-      mqttClient.send(msg);
-    }
-
-    function handleNetworkMessage(msg) {
-      if (isHost) {
-        if (msg.type === 'PLAYER_JOIN') {
-          if (!gameState.players.some(p => p.name === msg.data.name)) {
-            gameState.players.push({ name: msg.data.name, avatar: msg.data.avatar });
-            gameState.remaining.push(msg.data.name);
-            gameState.scores[msg.data.name] = { cat1: [], cat2: [], cat3: [], cat4: [] };
-            syncState();
-          }
-        }
-        if (msg.type === 'SUBMIT_VOTE') {
-          const target = gameState.currentOpener.name;
-          if (gameState.scores[target]) {
-            gameState.scores[target].cat1.push(msg.data.cat1);
-            gameState.scores[target].cat2.push(msg.data.cat2);
-            gameState.scores[target].cat3.push(msg.data.cat3);
-            gameState.scores[target].cat4.push(msg.data.cat4);
-          }
-        }
-      }
-
-      if (msg.type === 'STATE_UPDATE') {
-        gameState = msg.data;
-        renderState();
-      }
-
-      if (msg.type === 'SPIN_ACTION') {
-        runWheelAnimation(msg.data.winnerIndex, msg.data.finalRotation);
-      }
-    }
-
-    function syncState() {
-      sendNet('STATE_UPDATE', gameState);
-    }
-
-    // --- ACCIONES DE SALA ---
+    // --- CREAR SALA (ANFITRIÓN) ---
     function createRoom() {
       const name = document.getElementById('player-name').value.trim();
-      if (!name) return alert("Por favor escribe tu nombre");
+      if (!name) return alert("Escribe tu nombre primero");
+      
+      const btn = document.getElementById('btn-create');
+      btn.disabled = true;
+      btn.innerText = "Creando sala...";
+
       myName = name;
       isHost = true;
-      roomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
+      roomCode = Math.floor(1000 + Math.random() * 9000).toString(); // Código numérico de 4 dígitos
 
-      connectMqtt(roomCode, () => {
+      const peerId = 'ami-invis-' + roomCode;
+      peer = new Peer(peerId);
+
+      peer.on('open', () => {
         gameState.players = [{ name: myName, avatar: myAvatar }];
         gameState.remaining = [myName];
         gameState.scores[myName] = { cat1: [], cat2: [], cat3: [], cat4: [] };
-        setupUIForGame();
-        syncState();
+        
+        setupGameView();
+        renderState();
+      });
+
+      peer.on('connection', (conn) => {
+        clientConns.push(conn);
+        conn.on('data', (msg) => {
+          handleHostIncoming(msg);
+        });
+      });
+
+      peer.on('error', (err) => {
+        btn.disabled = false;
+        btn.innerText = "👑 Crear Nueva Sala";
+        if (err.type === 'unavailable-id') {
+          createRoom(); // Si colisiona el ID, intenta con otro
+        } else {
+          alert("Error de conexión: " + err.message);
+        }
       });
     }
 
+    // --- UNIRSE A SALA (INVITADO) ---
     function joinRoom() {
       const name = document.getElementById('player-name').value.trim();
-      const code = document.getElementById('room-input').value.trim().toUpperCase();
-      if (!name) return alert("Por favor escribe tu nombre");
-      if (!code) return alert("Introduce el código de la sala");
+      const code = document.getElementById('room-input').value.trim();
+      if (!name) return alert("Escribe tu nombre");
+      if (!code) return alert("Escribe el código numérico de 4 dígitos");
+
+      const btn = document.getElementById('btn-join');
+      btn.disabled = true;
+      btn.innerText = "Conectando...";
+
       myName = name;
       isHost = false;
       roomCode = code;
 
-      connectMqtt(roomCode, () => {
-        setupUIForGame();
-        sendNet('PLAYER_JOIN', { name: myName, avatar: myAvatar });
+      peer = new Peer();
+
+      peer.on('open', () => {
+        hostConn = peer.connect('ami-invis-' + roomCode);
+
+        hostConn.on('open', () => {
+          setupGameView();
+          hostConn.send({
+            type: 'JOIN',
+            data: { name: myName, avatar: myAvatar }
+          });
+        });
+
+        hostConn.on('data', (msg) => {
+          handleClientIncoming(msg);
+        });
+
+        hostConn.on('error', () => {
+          btn.disabled = false;
+          btn.innerText = "🎄 Unirme a la Sala";
+          alert("No se pudo conectar a la sala " + roomCode + ". Verifica el código.");
+        });
+      });
+
+      peer.on('error', () => {
+        btn.disabled = false;
+        btn.innerText = "🎄 Unirme a la Sala";
+        alert("No se encontró ninguna sala con el código " + code);
       });
     }
 
-    function setupUIForGame() {
+    function setupGameView() {
       document.getElementById('screen-auth').classList.add('hidden');
       document.getElementById('room-badge').classList.remove('hidden');
       document.getElementById('room-code-display').innerText = roomCode;
@@ -529,14 +509,48 @@
       }
     }
 
+    // --- MENSAJERÍA ---
+    function broadcast(type, data) {
+      clientConns.forEach(c => {
+        if (c.open) c.send({ type, data });
+      });
+    }
+
+    function handleHostIncoming(msg) {
+      if (msg.type === 'JOIN') {
+        if (!gameState.players.some(p => p.name === msg.data.name)) {
+          gameState.players.push(msg.data);
+          gameState.remaining.push(msg.data.name);
+          gameState.scores[msg.data.name] = { cat1: [], cat2: [], cat3: [], cat4: [] };
+          broadcast('SYNC', gameState);
+          renderState();
+        }
+      } else if (msg.type === 'VOTE') {
+        const target = gameState.currentOpener.name;
+        if (gameState.scores[target]) {
+          gameState.scores[target].cat1.push(msg.data.cat1);
+          gameState.scores[target].cat2.push(msg.data.cat2);
+          gameState.scores[target].cat3.push(msg.data.cat3);
+          gameState.scores[target].cat4.push(msg.data.cat4);
+        }
+      }
+    }
+
+    function handleClientIncoming(msg) {
+      if (msg.type === 'SYNC') {
+        gameState = msg.data;
+        renderState();
+      } else if (msg.type === 'SPIN') {
+        runWheelAnimation(msg.data.winnerIndex, msg.data.rotation);
+      }
+    }
+
+    // --- RENDERIZADO VISUAL ---
     function renderState() {
-      // 1. Render de lista en Lobby
-      const lobbyList = document.getElementById('lobby-list');
-      lobbyList.innerHTML = gameState.players.map(p => 
+      document.getElementById('lobby-list').innerHTML = gameState.players.map(p => 
         `<div class="player-pill">${p.avatar} ${p.name}</div>`
       ).join('');
 
-      // 2. Pantallas según el paso
       document.getElementById('screen-lobby').classList.toggle('hidden', gameState.step !== 'lobby');
       document.getElementById('screen-roulette').classList.toggle('hidden', gameState.step !== 'roulette');
       document.getElementById('screen-vote').classList.toggle('hidden', gameState.step !== 'voting');
@@ -557,14 +571,12 @@
     }
 
     function hostStartGame() {
-      if (gameState.players.length < 2) {
-        if(!confirm("Solo hay 1 participante en la sala. ¿Continuar igualmente?")) return;
-      }
       gameState.step = 'roulette';
-      syncState();
+      broadcast('SYNC', gameState);
+      renderState();
     }
 
-    // --- RULETA CANVAS ---
+    // --- RULETA ---
     function drawWheel() {
       const canvas = document.getElementById('wheel-canvas');
       const ctx = canvas.getContext('2d');
@@ -578,17 +590,16 @@
       for (let i = 0; i < count; i++) {
         ctx.beginPath();
         ctx.fillStyle = colors[i % colors.length];
-        ctx.moveTo(140, 140);
-        ctx.arc(140, 140, 140, i * angle, (i + 1) * angle);
-        ctx.lineTo(140, 140);
+        ctx.moveTo(135, 135);
+        ctx.arc(135, 135, 135, i * angle, (i + 1) * angle);
+        ctx.lineTo(135, 135);
         ctx.fill();
 
-        // Texto
         ctx.save();
-        ctx.translate(140, 140);
+        ctx.translate(135, 135);
         ctx.rotate(i * angle + angle / 2);
         ctx.fillStyle = '#fff';
-        ctx.font = 'bold 14px Outfit';
+        ctx.font = 'bold 13px Outfit';
         ctx.textAlign = 'right';
         ctx.fillText(gameState.remaining[i], 120, 5);
         ctx.restore();
@@ -598,10 +609,10 @@
     function hostSpinWheel() {
       const winnerIndex = Math.floor(Math.random() * gameState.remaining.length);
       const sliceDeg = 360 / gameState.remaining.length;
-      // Posicionar bajo el puntero superior
-      const finalRotation = 360 * 5 + (360 - (winnerIndex * sliceDeg + sliceDeg / 2)) - 90;
+      const rotation = 360 * 5 + (360 - (winnerIndex * sliceDeg + sliceDeg / 2)) - 90;
 
-      sendNet('SPIN_ACTION', { winnerIndex, finalRotation });
+      broadcast('SPIN', { winnerIndex, rotation });
+      runWheelAnimation(winnerIndex, rotation);
     }
 
     function runWheelAnimation(winnerIdx, rotation) {
@@ -618,21 +629,20 @@
           gameState.remaining = gameState.remaining.filter(n => n !== winnerName);
           setTimeout(() => {
             gameState.step = 'voting';
-            // Reset visual
             wheel.style.transition = 'none';
             wheel.style.transform = 'rotate(0deg)';
             setTimeout(() => wheel.style.transition = 'transform 4s cubic-bezier(0.15, 0.9, 0.2, 1)', 50);
-            syncState();
+            broadcast('SYNC', gameState);
+            renderState();
           }, 2000);
         }
-        // Preparar pantalla de voto
         document.getElementById('vote-form').classList.remove('hidden');
         document.getElementById('vote-feedback').classList.add('hidden');
         resetStars();
       }, 4200);
     }
 
-    // --- ENCUENTAS & ESTRELLAS ---
+    // --- VOTACIONES ---
     function rate(cat, val) {
       localRatings[cat] = val;
       const group = document.querySelector(`.stars[data-cat="${cat}"]`);
@@ -642,11 +652,19 @@
     }
 
     function resetStars() {
-      ['cat1','cat2','cat3','cat4'].forEach(cat => rate(cat, 5));
+      ['cat1','cat2','cat3','cat4'].forEach(c => rate(c, 5));
     }
 
     function sendVote() {
-      sendNet('SUBMIT_VOTE', localRatings);
+      if (isHost) {
+        const target = gameState.currentOpener.name;
+        gameState.scores[target].cat1.push(localRatings.cat1);
+        gameState.scores[target].cat2.push(localRatings.cat2);
+        gameState.scores[target].cat3.push(localRatings.cat3);
+        gameState.scores[target].cat4.push(localRatings.cat4);
+      } else if (hostConn) {
+        hostConn.send({ type: 'VOTE', data: localRatings });
+      }
       document.getElementById('vote-form').classList.add('hidden');
       document.getElementById('vote-feedback').classList.remove('hidden');
     }
@@ -657,15 +675,16 @@
       } else {
         gameState.step = 'results';
       }
-      syncState();
+      broadcast('SYNC', gameState);
+      renderState();
     }
 
     // --- RESULTADOS & PODIO ---
     function renderPodium() {
       const list = document.getElementById('podium-list');
       const ranked = gameState.players.map(p => {
-        const sc = gameState.scores[p.name];
-        const all = [...(sc.cat1 || []), ...(sc.cat2 || []), ...(sc.cat3 || []), ...(sc.cat4 || [])];
+        const sc = gameState.scores[p.name] || {};
+        const all = [...(sc.cat1||[]), ...(sc.cat2||[]), ...(sc.cat3||[]), ...(sc.cat4||[])];
         const avg = all.length ? (all.reduce((a,b)=>a+b, 0) / all.length).toFixed(1) : '5.0';
         return { ...p, avg: parseFloat(avg) };
       }).sort((a,b) => b.avg - a.avg);
@@ -677,7 +696,7 @@
             <span style="font-size:1.3rem;">${medals[i] || '🎖️'}</span>
             <strong>${p.avatar} ${p.name}</strong>
           </div>
-          <div style="font-size:1.1rem; color:var(--xmas-gold); font-weight:800;">
+          <div style="font-size:1.15rem; color:var(--xmas-gold); font-weight:800;">
             ${p.avg} ★
           </div>
         </div>
@@ -685,14 +704,14 @@
     }
 
     function shareWhatsApp() {
-      let txt = `🎄 *Premios Gala Amigo Invisible* 🎁\n\n`;
+      let txt = `🎄 *Premios Amigo Invisible Familiar* 🎁\n\n`;
       gameState.players.forEach(p => {
-        const sc = gameState.scores[p.name];
-        const all = [...sc.cat1, ...sc.cat2, ...sc.cat3, ...sc.cat4];
+        const sc = gameState.scores[p.name] || {};
+        const all = [...(sc.cat1||[]), ...(sc.cat2||[]), ...(sc.cat3||[]), ...(sc.cat4||[])];
         const avg = all.length ? (all.reduce((a,b)=>a+b, 0) / all.length).toFixed(1) : '5.0';
         txt += `${p.avatar} *${p.name}*: ${avg} ★\n`;
       });
-      txt += `\n¡Felices Fiestas a toda la familia! 🎅`;
+      txt += `\n¡Felices Fiestas a todos! 🎅✨`;
       window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(txt)}`, '_blank');
     }
   </script>
