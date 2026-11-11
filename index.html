@@ -8,9 +8,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Mountains+of+Christmas:wght@700&display=swap" rel="stylesheet">
   
-  <!-- Firebase App & Database (CDN oficial de Google, puerto 443 estándar, 100% compatible con móviles) -->
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <!-- MQTT oficial sobre WSS (Puerto 443 estándar, sin registros, instantáneo) -->
+  <script src="https://unpkg.com/mqtt@4.3.7/dist/mqtt.min.js"></script>
   <!-- Confeti -->
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
   
@@ -649,21 +648,13 @@
     }
     drawSnow();
 
-    // --- CONEXIÓN FIREBASE EN TIEMPO REAL (PUERTO 443 ESTÁNDAR) ---
-    // Usamos Firebase Realtime Database con lectura/escritura abierta directa
-    const firebaseConfig = {
-      databaseURL: "https://xmas-amigo-invisible-default-rtdb.europe-west1.firebasedatabase.app"
-    };
-    if (!firebase.apps.length) {
-      firebase.initializeApp(firebaseConfig);
-    }
-    const db = firebase.database();
-
+    // --- MOTOR DE RED: MQTT WSS PÚBLICO (BROKER EMQX WSS 443) ---
+    // Conexión libre sobre SSL estándar que NUNCA es bloqueada por móviles
+    let client = null;
     let myAvatar = '🎅';
     let myName = '';
     let isHost = false;
     let roomCode = '';
-    let roomRef = null;
 
     let gameState = {
       players: [],
@@ -671,12 +662,96 @@
       currentOpener: null,
       scores: {},
       votedInCurrentRound: [],
-      step: 'lobby',
-      lastSpin: null
+      step: 'lobby'
     };
 
     let localRatings = { cat1: 5, cat2: 5, cat3: 5, cat4: 5 };
 
+    function getTopic(code) {
+      return `xmas_secret_santa_room_${code}`;
+    }
+
+    function initMqtt(code, onConnect) {
+      if (client) {
+        try { client.end(); } catch(e){}
+      }
+      // Conexión segura por WSS a broker global gratuito sin autenticación
+      client = mqtt.connect('wss://broker.emqx.io:8084/mqtt', {
+        clientId: 'xmas_' + Math.random().toString(16).substring(2, 10),
+        clean: true,
+        reconnectPeriod: 2000
+      });
+
+      client.on('connect', () => {
+        client.subscribe(getTopic(code), (err) => {
+          if (!err && onConnect) onConnect();
+        });
+      });
+
+      client.on('message', (topic, payload) => {
+        try {
+          const msg = JSON.parse(payload.toString());
+          handleIncomingMessage(msg);
+        } catch(e){}
+      });
+
+      client.on('error', () => {
+        showToast("⚠️ Reintentando red...");
+      });
+    }
+
+    function publish(type, data) {
+      if (client && client.connected) {
+        const payload = JSON.stringify({ type, data, sender: myName });
+        client.publish(getTopic(roomCode), payload);
+      }
+    }
+
+    function handleIncomingMessage(msg) {
+      // Si soy el Host PC
+      if (isHost) {
+        if (msg.type === 'JOIN_REQ') {
+          const existing = gameState.players.find(p => p.name === msg.data.name);
+          if (!existing) {
+            gameState.players.push(msg.data);
+            if (gameState.step === 'lobby') {
+              gameState.remaining.push(msg.data.name);
+            }
+            gameState.scores[msg.data.name] = { cat1: [], cat2: [], cat3: [], cat4: [] };
+          } else {
+            existing.avatar = msg.data.avatar;
+          }
+          saveSession();
+          publish('SYNC', gameState);
+          renderState();
+        } else if (msg.type === 'VOTE_SUBMIT') {
+          const target = gameState.currentOpener ? gameState.currentOpener.name : null;
+          if (target && gameState.scores[target] && !gameState.votedInCurrentRound.includes(msg.data.voter)) {
+            gameState.scores[target].cat1.push(msg.data.cat1);
+            gameState.scores[target].cat2.push(msg.data.cat2);
+            gameState.scores[target].cat3.push(msg.data.cat3);
+            gameState.scores[target].cat4.push(msg.data.cat4);
+            gameState.votedInCurrentRound.push(msg.data.voter);
+            saveSession();
+            publish('SYNC', gameState);
+            renderState();
+          }
+        }
+      }
+
+      // Si soy el Jugador (Móvil)
+      if (!isHost) {
+        if (msg.type === 'SYNC') {
+          setupGameView();
+          gameState = msg.data;
+          renderState();
+        } else if (msg.type === 'SPIN_RUN') {
+          runWheelAnimation(msg.data.winnerIndex, msg.data.rotation);
+        }
+      }
+    }
+
+    // --- GUARDADO LOCAL & RECONEXIÓN ---
     function saveSession() {
       localStorage.setItem('xmas_session', JSON.stringify({
         roomCode,
@@ -684,6 +759,9 @@
         myAvatar,
         isHost
       }));
+      if (isHost) {
+        localStorage.setItem('xmas_host_state_' + roomCode, JSON.stringify(gameState));
+      }
     }
 
     function clearSession() {
@@ -717,9 +795,16 @@
       myAvatar = session.myAvatar || '🎅';
 
       if (isHost) {
+        const saved = localStorage.getItem('xmas_host_state_' + roomCode);
+        if (saved) {
+          try { gameState = JSON.parse(saved); } catch(e){}
+        }
         document.body.classList.add('is-host-mode');
-        bindRoomDatabase(roomCode);
-        setupGameView();
+        initMqtt(roomCode, () => {
+          setupGameView();
+          renderState();
+          publish('SYNC', gameState);
+        });
       } else {
         document.getElementById('player-name').value = myName;
         document.getElementById('room-input').value = roomCode;
@@ -748,18 +833,23 @@
         currentOpener: null,
         scores: {},
         votedInCurrentRound: [],
-        step: 'lobby',
-        lastSpin: null
+        step: 'lobby'
       };
 
       document.body.classList.add('is-host-mode');
       saveSession();
-      setupGameView();
 
-      roomRef = db.ref('rooms/' + roomCode);
-      roomRef.set(gameState);
-      bindRoomDatabase(roomCode);
-      showToast("✅ Sala " + roomCode + " creada en el PC");
+      const btn = document.getElementById('btn-create-host');
+      btn.disabled = true;
+      btn.innerText = "Creando sala...";
+
+      initMqtt(roomCode, () => {
+        btn.disabled = false;
+        btn.innerText = "🖥️ Modo Pantalla Central / Host (PC)";
+        setupGameView();
+        renderState();
+        showToast("✅ Sala " + roomCode + " lista en el PC");
+      });
     }
 
     // --- ACCIÓN: ENTRAR COMO JUGADOR (MÓVIL) ---
@@ -777,70 +867,14 @@
 
       const btn = document.getElementById('btn-join');
       btn.disabled = true;
-      btn.innerText = "Conectando al PC...";
+      btn.innerText = "Entrando a la sala...";
 
-      roomRef = db.ref('rooms/' + roomCode);
-
-      // Verificamos si existe la sala creada por el PC
-      roomRef.once('value').then((snapshot) => {
+      initMqtt(roomCode, () => {
         btn.disabled = false;
         btn.innerText = "🎄 Unirme a la Partida";
-
-        if (!snapshot.exists()) {
-          alert("No se encontró la sala " + roomCode + ".\nComprueba que el PC tiene la pantalla abierta mostrando este código.");
-          return;
-        }
-
+        // Enviar mensaje de unión al Host
+        publish('JOIN_REQ', { name: myName, avatar: myAvatar });
         setupGameView();
-        bindRoomDatabase(roomCode);
-
-        // Añadir jugador a la lista si no existe
-        roomRef.transaction((state) => {
-          if (!state) return state;
-          if (!state.players) state.players = [];
-          if (!state.remaining) state.remaining = [];
-          if (!state.scores) state.scores = {};
-
-          const exists = state.players.some(p => p.name === myName);
-          if (!exists) {
-            state.players.push({ name: myName, avatar: myAvatar });
-            if (state.step === 'lobby') {
-              state.remaining.push(myName);
-            }
-            state.scores[myName] = { cat1: [5], cat2: [5], cat3: [5], cat4: [5] };
-          }
-          return state;
-        });
-
-        showToast("✅ Conectado a la partida");
-      }).catch((err) => {
-        btn.disabled = false;
-        btn.innerText = "🎄 Unirme a la Partida";
-        alert("Error de conexión: " + err.message);
-      });
-    }
-
-    // --- ESCUCHADOR EN TIEMPO REAL (SINCRONIZA PC Y MÓVILES) ---
-    function bindRoomDatabase(code) {
-      if (roomRef) roomRef.off();
-      roomRef = db.ref('rooms/' + code);
-
-      roomRef.on('value', (snapshot) => {
-        const val = snapshot.val();
-        if (!val) return;
-
-        // Comprobar si se ha lanzado una animación de ruleta
-        if (val.lastSpin && (!gameState.lastSpin || val.lastSpin.timestamp !== gameState.lastSpin.timestamp)) {
-          runWheelAnimation(val.lastSpin.winnerIndex, val.lastSpin.rotation);
-        }
-
-        gameState = val;
-        if (!gameState.players) gameState.players = [];
-        if (!gameState.remaining) gameState.remaining = [];
-        if (!gameState.votedInCurrentRound) gameState.votedInCurrentRound = [];
-        if (!gameState.scores) gameState.scores = {};
-
-        renderState();
       });
     }
 
@@ -943,7 +977,10 @@
         if (!confirm("Solo hay " + gameState.players.length + " jugador. ¿Iniciar de todos modos?")) return;
       }
       playClickBell();
-      roomRef.update({ step: 'roulette' });
+      gameState.step = 'roulette';
+      saveSession();
+      publish('SYNC', gameState);
+      renderState();
     }
 
     function hostSpinWheel() {
@@ -957,14 +994,8 @@
       const sliceDeg = 360 / gameState.remaining.length;
       const rotation = 360 * 5 + (360 - (winnerIndex * sliceDeg + sliceDeg / 2)) - 90;
 
-      // Guarda el giro en Firebase para que se mueva en el PC y en los móviles a la vez
-      roomRef.update({
-        lastSpin: {
-          winnerIndex: winnerIndex,
-          rotation: rotation,
-          timestamp: Date.now()
-        }
-      });
+      publish('SPIN_RUN', { winnerIndex, rotation });
+      runWheelAnimation(winnerIndex, rotation);
     }
 
     function runWheelAnimation(winnerIdx, rotation) {
@@ -986,21 +1017,22 @@
         const winnerObj = gameState.players.find(p => p.name === winnerName);
 
         if (isHost) {
-          const newRemaining = gameState.remaining.filter(n => n !== winnerName);
+          gameState.currentOpener = winnerObj;
+          gameState.remaining = gameState.remaining.filter(n => n !== winnerName);
+          gameState.votedInCurrentRound = [];
+          saveSession();
+
           setTimeout(() => {
             const btn = document.getElementById('spin-btn');
             if (btn) btn.disabled = false;
 
+            gameState.step = 'voting';
             wheel.style.transition = 'none';
             wheel.style.transform = 'rotate(0deg)';
             setTimeout(() => wheel.style.transition = 'transform 4s cubic-bezier(0.15, 0.9, 0.2, 1)', 50);
 
-            roomRef.update({
-              currentOpener: winnerObj,
-              remaining: newRemaining,
-              votedInCurrentRound: [],
-              step: 'voting'
-            });
+            publish('SYNC', gameState);
+            renderState();
           }, 2400);
         }
         resetStars();
@@ -1009,8 +1041,14 @@
 
     function hostNextTurn() {
       playClickBell();
-      const nextStep = (gameState.remaining.length > 0) ? 'roulette' : 'results';
-      roomRef.update({ step: nextStep });
+      if (gameState.remaining.length > 0) {
+        gameState.step = 'roulette';
+      } else {
+        gameState.step = 'results';
+      }
+      saveSession();
+      publish('SYNC', gameState);
+      renderState();
     }
 
     function drawWheel() {
@@ -1058,25 +1096,7 @@
 
     function sendVote() {
       playClickBell();
-      const target = gameState.currentOpener ? gameState.currentOpener.name : null;
-      if (!target) return;
-
-      roomRef.transaction((state) => {
-        if (!state) return state;
-        if (!state.votedInCurrentRound) state.votedInCurrentRound = [];
-        if (!state.scores) state.scores = {};
-        if (!state.scores[target]) state.scores[target] = { cat1:[], cat2:[], cat3:[], cat4:[] };
-
-        if (!state.votedInCurrentRound.includes(myName)) {
-          state.votedInCurrentRound.push(myName);
-          state.scores[target].cat1 = (state.scores[target].cat1 || []).concat([localRatings.cat1]);
-          state.scores[target].cat2 = (state.scores[target].cat2 || []).concat([localRatings.cat2]);
-          state.scores[target].cat3 = (state.scores[target].cat3 || []).concat([localRatings.cat3]);
-          state.scores[target].cat4 = (state.scores[target].cat4 || []).concat([localRatings.cat4]);
-        }
-        return state;
-      });
-
+      publish('VOTE_SUBMIT', { ...localRatings, voter: myName });
       document.getElementById('vote-form').classList.add('hidden');
       document.getElementById('vote-feedback').classList.remove('hidden');
     }
