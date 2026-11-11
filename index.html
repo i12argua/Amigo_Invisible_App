@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Mountains+of+Christmas:wght@700&display=swap" rel="stylesheet">
-  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <!-- Confeti -->
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
   <style>
     :root {
@@ -39,7 +39,7 @@
       width: 100%;
       max-width: 500px;
       padding: 16px;
-      padding-top: 55px; /* Espacio para que no choque con el botón de música */
+      padding-top: 55px;
       z-index: 2;
       display: flex;
       flex-direction: column;
@@ -68,7 +68,7 @@
     }
     #status-toast {
       position: fixed;
-      bottom: 12px;
+      bottom: 14px;
       background: rgba(0,0,0,0.9);
       border: 1px solid var(--xmas-gold);
       color: var(--xmas-gold);
@@ -293,7 +293,7 @@
 <body>
   <canvas id="snow-canvas"></canvas>
 
-  <div id="status-toast">🔄 Reconectando...</div>
+  <div id="status-toast">🔄 Conectando...</div>
   <button id="music-toggle" class="audio-toggle-btn" onclick="toggleMusic()" title="Activar/Silenciar música">🎵</button>
 
   <div class="container">
@@ -302,7 +302,7 @@
       <div id="room-badge" class="badge-room hidden">Sala: <strong id="room-code-display" style="letter-spacing: 2px;">---</strong></div>
     </header>
 
-    <!-- PANTALLA INICIAL: SELECCIÓN DE ROL -->
+    <!-- PANTALLA INICIAL -->
     <div id="screen-auth" class="card">
       <h2 style="margin-bottom: 14px; color: var(--xmas-gold);">¡Bienvenidos! 🎁</h2>
 
@@ -487,21 +487,14 @@
   </div>
 
   <script>
-    function showToast(msg, duration = 3500) {
+    function showToast(msg, duration = 3000) {
       const t = document.getElementById('status-toast');
       t.innerText = msg;
       t.style.display = 'block';
       setTimeout(() => { t.style.display = 'none'; }, duration);
     }
 
-    let wakeLock = null;
-    async function requestWakeLock() {
-      try {
-        if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen');
-      } catch (err) {}
-    }
-
-    // --- AUDIO ---
+    // --- AUDIO API NATIVO ---
     let audioCtx = null;
     let isMusicPlaying = false;
     let musicInterval = null;
@@ -654,16 +647,13 @@
     }
     drawSnow();
 
-    // --- ESTADO Y RED ---
+    // --- CANAL EN TIEMPO REAL NATIVO (WEBSOCKET TLS / PUERTO 443 ESTÁNDAR) ---
+    // Utiliza el WebSocket Gateway público de PieSocket que no bloquea móviles ni redes 4G/5G
+    let ws = null;
     let myAvatar = '🎅';
     let myName = '';
     let isHost = false;
     let roomCode = '';
-    let peer = null;
-    let hostConn = null;
-    let clientConns = [];
-    let heartbeatInterval = null;
-    let joinTimeoutTimer = null;
 
     let gameState = {
       players: [],
@@ -676,6 +666,87 @@
 
     let localRatings = { cat1: 5, cat2: 5, cat3: 5, cat4: 5 };
 
+    function initSocket(code, onOpenCallback) {
+      if (ws) {
+        try { ws.close(); } catch(e){}
+      }
+      // Gateway WebSocket TLS público en puerto 443 estándar
+      const wsUrl = `wss://free.blr2.piesocket.com/v3/xmas_room_${code}?api_key=VCqIXucCHAvKIdRNo4OP1vnHarQIaeptUKbvPkAA&notify_self=0`;
+      
+      ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        showToast("✅ Conectado a la sala");
+        if (onOpenCallback) onOpenCallback();
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          handleIncomingMessage(msg);
+        } catch(e){}
+      };
+
+      ws.onerror = () => {
+        showToast("⚠️ Reintentando conexión...");
+      };
+
+      ws.onclose = () => {
+        setTimeout(() => {
+          if (roomCode) initSocket(roomCode);
+        }, 2000);
+      };
+    }
+
+    function sendNet(type, data) {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type, data, sender: myName }));
+      }
+    }
+
+    function handleIncomingMessage(msg) {
+      if (isHost) {
+        if (msg.type === 'REQ_JOIN') {
+          const existing = gameState.players.find(p => p.name === msg.data.name);
+          if (!existing) {
+            gameState.players.push(msg.data);
+            if (gameState.step === 'lobby') {
+              gameState.remaining.push(msg.data.name);
+            }
+            gameState.scores[msg.data.name] = { cat1: [], cat2: [], cat3: [], cat4: [] };
+          } else {
+            existing.avatar = msg.data.avatar;
+          }
+          saveSession();
+          sendNet('SYNC', gameState);
+          renderState();
+        } else if (msg.type === 'VOTE') {
+          const target = gameState.currentOpener ? gameState.currentOpener.name : null;
+          if (target && gameState.scores[target] && !gameState.votedInCurrentRound.includes(msg.data.voter)) {
+            gameState.scores[target].cat1.push(msg.data.cat1);
+            gameState.scores[target].cat2.push(msg.data.cat2);
+            gameState.scores[target].cat3.push(msg.data.cat3);
+            gameState.scores[target].cat4.push(msg.data.cat4);
+            gameState.votedInCurrentRound.push(msg.data.voter);
+            saveSession();
+            sendNet('SYNC', gameState);
+            renderState();
+          }
+        }
+      }
+
+      if (!isHost) {
+        if (msg.type === 'SYNC') {
+          setupGameView();
+          gameState = msg.data;
+          renderState();
+        } else if (msg.type === 'SPIN') {
+          runWheelAnimation(msg.data.winnerIndex, msg.data.rotation);
+        }
+      }
+    }
+
+    // --- GUARDADO Y SESIÓN ---
     function saveSession() {
       localStorage.setItem('xmas_session', JSON.stringify({
         roomCode,
@@ -719,11 +790,15 @@
       myAvatar = session.myAvatar || '🎅';
 
       if (isHost) {
-        const savedState = localStorage.getItem('xmas_host_state_' + roomCode);
-        if (savedState) {
-          try { gameState = JSON.parse(savedState); } catch(e){}
+        const saved = localStorage.getItem('xmas_host_state_' + roomCode);
+        if (saved) {
+          try { gameState = JSON.parse(saved); } catch(e){}
         }
-        initHostPeer(roomCode);
+        document.body.classList.add('is-host-mode');
+        initSocket(roomCode, () => {
+          setupGameView();
+          renderState();
+        });
       } else {
         document.getElementById('player-name').value = myName;
         document.getElementById('room-input').value = roomCode;
@@ -739,21 +814,9 @@
       });
     }
 
-    function startHeartbeat() {
-      if (heartbeatInterval) clearInterval(heartbeatInterval);
-      heartbeatInterval = setInterval(() => {
-        if (peer && !peer.destroyed) {
-          if (peer.disconnected) peer.reconnect();
-          if (isHost) broadcast('PING', {});
-          else if (hostConn && hostConn.open) hostConn.send({ type: 'PING', data: {} });
-        }
-      }, 9000);
-    }
-
-    // --- MODO PC (HOST) ---
+    // --- ACCIÓN: CREAR HOST (PC) ---
     function createHostRoom() {
       playClickBell();
-      requestWakeLock();
       isHost = true;
       myName = 'HOST_CENTRAL';
       roomCode = Math.floor(1000 + Math.random() * 9000).toString();
@@ -763,82 +826,22 @@
       gameState.scores = {};
       gameState.votedInCurrentRound = [];
 
-      initHostPeer(roomCode);
-    }
-
-    function initHostPeer(code) {
       document.body.classList.add('is-host-mode');
-      const btn = document.getElementById('btn-create-host');
-      if (btn) {
-        btn.disabled = true;
-        btn.innerText = "Registrando sala en la nube...";
-      }
-
       saveSession();
-      const peerId = 'ami-invis-' + code;
 
-      if (peer && !peer.destroyed) {
-        try { peer.destroy(); } catch(e){}
-      }
-
-      peer = new Peer(peerId, {
-        debug: 1,
-        config: {
-          iceServers: [
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' }
-          ]
-        }
-      });
-
-      peer.on('open', () => {
-        if (btn) {
-          btn.disabled = false;
-          btn.innerText = "🖥️ Modo Pantalla Central / Host (PC)";
-        }
+      initSocket(roomCode, () => {
         setupGameView();
         renderState();
-        startHeartbeat();
-      });
-
-      peer.on('connection', (conn) => {
-        clientConns = clientConns.filter(c => c.open);
-        clientConns.push(conn);
-
-        conn.on('open', () => {
-          conn.send({ type: 'SYNC', data: gameState });
-        });
-        conn.on('data', (msg) => {
-          handleHostIncoming(msg);
-        });
-      });
-
-      peer.on('disconnected', () => {
-        showToast("⚠️ Host desconectado. Reconectando...");
-        if (peer && !peer.destroyed) peer.reconnect();
-      });
-
-      peer.on('error', (err) => {
-        if (btn) {
-          btn.disabled = false;
-          btn.innerText = "🖥️ Modo Pantalla Central / Host (PC)";
-        }
-        if (err.type === 'unavailable-id') {
-          setTimeout(() => { if (peer && !peer.destroyed) peer.reconnect(); }, 1200);
-        } else {
-          showToast("Aviso Host: " + err.type);
-        }
       });
     }
 
-    // --- MODO JUGADOR (MÓVIL) ---
+    // --- ACCIÓN: UNIRSE (MÓVILES) ---
     function joinRoom() {
       playClickBell();
-      requestWakeLock();
       const name = document.getElementById('player-name').value.trim();
       const code = document.getElementById('room-input').value.trim();
-      if (!name) return alert("Por favor, escribe tu nombre");
-      if (!code) return alert("Escribe el código de sala que aparece en la pantalla del PC");
+      if (!name) return alert("Por favor escribe tu nombre");
+      if (!code) return alert("Introduce el código de sala de 4 cifras");
 
       myName = name;
       isHost = false;
@@ -847,75 +850,13 @@
 
       const btn = document.getElementById('btn-join');
       btn.disabled = true;
-      btn.innerText = "Conectando al PC...";
+      btn.innerText = "Entrando a la sala...";
 
-      if (peer && !peer.destroyed) {
-        try { peer.destroy(); } catch(e){}
-      }
-
-      peer = new Peer({
-        debug: 1,
-        config: {
-          iceServers: [
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' }
-          ]
-        }
-      });
-
-      peer.on('open', () => {
-        connectToHost();
-        startHeartbeat();
-      });
-
-      peer.on('disconnected', () => {
-        if (peer && !peer.destroyed) peer.reconnect();
-      });
-
-      peer.on('error', (err) => {
-        clearTimeout(joinTimeoutTimer);
+      initSocket(roomCode, () => {
         btn.disabled = false;
         btn.innerText = "🎄 Unirme a la Partida";
-        alert("Error de red: no se pudo iniciar el servicio en este teléfono.");
-      });
-    }
-
-    function connectToHost() {
-      const btn = document.getElementById('btn-join');
-
-      // TIMEOUT DE SEGURIDAD (6 SEGUNDOS)
-      clearTimeout(joinTimeoutTimer);
-      joinTimeoutTimer = setTimeout(() => {
-        if (document.getElementById('screen-lobby').classList.contains('hidden')) {
-          btn.disabled = false;
-          btn.innerText = "🎄 Unirme a la Partida";
-          alert("No se pudo conectar a la sala " + roomCode + ".\n\nComprueba que el PC tiene la pantalla abierta mostrando este código exacto.");
-        }
-      }, 6500);
-
-      hostConn = peer.connect('ami-invis-' + roomCode, { reliable: true });
-
-      hostConn.on('open', () => {
-        hostConn.send({
-          type: 'JOIN',
-          data: { name: myName, avatar: myAvatar }
-        });
-      });
-
-      hostConn.on('data', (msg) => {
-        clearTimeout(joinTimeoutTimer);
-        handleClientIncoming(msg);
-      });
-
-      hostConn.on('close', () => {
-        showToast("⚠️ Conexión perdida con la pantalla central");
-      });
-
-      hostConn.on('error', () => {
-        clearTimeout(joinTimeoutTimer);
-        btn.disabled = false;
-        btn.innerText = "🎄 Unirme a la Partida";
-        alert("No se encontró la sala " + roomCode + " en el PC central.");
+        // Enviar petición de unión al PC
+        sendNet('REQ_JOIN', { name: myName, avatar: myAvatar });
       });
     }
 
@@ -940,58 +881,7 @@
       }
     }
 
-    function broadcast(type, data) {
-      clientConns = clientConns.filter(c => c.open);
-      clientConns.forEach(c => {
-        try { c.send({ type, data }); } catch(e){}
-      });
-    }
-
-    function handleHostIncoming(msg) {
-      if (msg.type === 'PING') return;
-
-      if (msg.type === 'JOIN') {
-        const existing = gameState.players.find(p => p.name === msg.data.name);
-        if (!existing) {
-          gameState.players.push(msg.data);
-          if (gameState.step === 'lobby') {
-            gameState.remaining.push(msg.data.name);
-          }
-          gameState.scores[msg.data.name] = { cat1: [], cat2: [], cat3: [], cat4: [] };
-        } else {
-          existing.avatar = msg.data.avatar;
-        }
-        saveSession();
-        broadcast('SYNC', gameState);
-        renderState();
-      } else if (msg.type === 'VOTE') {
-        const target = gameState.currentOpener ? gameState.currentOpener.name : null;
-        if (target && gameState.scores[target] && !gameState.votedInCurrentRound.includes(msg.voter)) {
-          gameState.scores[target].cat1.push(msg.data.cat1);
-          gameState.scores[target].cat2.push(msg.data.cat2);
-          gameState.scores[target].cat3.push(msg.data.cat3);
-          gameState.scores[target].cat4.push(msg.data.cat4);
-          gameState.votedInCurrentRound.push(msg.voter);
-          saveSession();
-          broadcast('SYNC', gameState);
-          renderState();
-        }
-      }
-    }
-
-    function handleClientIncoming(msg) {
-      if (msg.type === 'PING') return;
-
-      if (msg.type === 'SYNC') {
-        // En cuanto recibimos el primer estado sincronizado del Host, pasamos de pantalla
-        setupGameView();
-        gameState = msg.data;
-        renderState();
-      } else if (msg.type === 'SPIN') {
-        runWheelAnimation(msg.data.winnerIndex, msg.data.rotation);
-      }
-    }
-
+    // --- RENDERIZADO VISUAL ---
     function renderState() {
       document.getElementById('players-count').innerText = gameState.players.length;
       document.getElementById('lobby-list').innerHTML = gameState.players.map(p => 
@@ -1063,14 +953,15 @@
       }).join('');
     }
 
+    // --- ACCIONES EXCLUSIVAS DEL PC HOST ---
     function hostStartGame() {
       if (gameState.players.length < 2) {
-        if (!confirm("Solo hay " + gameState.players.length + " jugador en la sala. ¿Iniciar de todos modos?")) return;
+        if (!confirm("Solo hay " + gameState.players.length + " jugador. ¿Iniciar de todos modos?")) return;
       }
       playClickBell();
       gameState.step = 'roulette';
       saveSession();
-      broadcast('SYNC', gameState);
+      sendNet('SYNC', gameState);
       renderState();
     }
 
@@ -1085,7 +976,7 @@
       const sliceDeg = 360 / gameState.remaining.length;
       const rotation = 360 * 5 + (360 - (winnerIndex * sliceDeg + sliceDeg / 2)) - 90;
 
-      broadcast('SPIN', { winnerIndex, rotation });
+      sendNet('SPIN', { winnerIndex, rotation });
       runWheelAnimation(winnerIndex, rotation);
     }
 
@@ -1121,7 +1012,7 @@
             wheel.style.transition = 'none';
             wheel.style.transform = 'rotate(0deg)';
             setTimeout(() => wheel.style.transition = 'transform 4s cubic-bezier(0.15, 0.9, 0.2, 1)', 50);
-            broadcast('SYNC', gameState);
+            sendNet('SYNC', gameState);
             renderState();
           }, 2400);
         }
@@ -1137,7 +1028,7 @@
         gameState.step = 'results';
       }
       saveSession();
-      broadcast('SYNC', gameState);
+      sendNet('SYNC', gameState);
       renderState();
     }
 
@@ -1170,6 +1061,7 @@
       }
     }
 
+    // --- ACCIONES EN LOS MÓVILES ---
     function rate(cat, val) {
       playStarBell(val);
       localRatings[cat] = val;
@@ -1185,9 +1077,7 @@
 
     function sendVote() {
       playClickBell();
-      if (hostConn && hostConn.open) {
-        hostConn.send({ type: 'VOTE', data: localRatings, voter: myName });
-      }
+      sendNet('VOTE', { ...localRatings, voter: myName });
       document.getElementById('vote-form').classList.add('hidden');
       document.getElementById('vote-feedback').classList.remove('hidden');
     }
