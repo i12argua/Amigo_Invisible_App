@@ -8,9 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Mountains+of+Christmas:wght@700&display=swap" rel="stylesheet">
   
-  <!-- MQTT oficial sobre WSS (Puerto 443 estándar, sin registros, instantáneo) -->
   <script src="https://unpkg.com/mqtt@4.3.7/dist/mqtt.min.js"></script>
-  <!-- Confeti -->
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
   
   <style>
@@ -19,7 +17,7 @@
       --xmas-dark-red: #7a0c1e;
       --xmas-green: #165b33;
       --xmas-gold: #f8b229;
-      --card-bg: rgba(22, 91, 51, 0.92);
+      --card-bg: rgba(22, 91, 51, 0.94);
     }
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     body {
@@ -50,7 +48,7 @@
       align-items: center;
     }
     body.is-host-mode .container {
-      max-width: 820px;
+      max-width: 840px;
     }
     .audio-toggle-btn {
       position: fixed;
@@ -106,7 +104,7 @@
       -webkit-backdrop-filter: blur(12px);
       border: 2px solid rgba(248, 178, 41, 0.4);
       border-radius: 24px;
-      padding: 20px;
+      padding: 22px;
       width: 100%;
       box-shadow: 0 12px 30px rgba(0,0,0,0.5);
       margin-bottom: 16px;
@@ -279,15 +277,207 @@
     .vote-item:last-child { border-bottom: none; }
     .status-voted { color: #55efc4; font-weight: 700; }
     .status-waiting { color: #ffeaa7; opacity: 0.8; }
-    .podium-item {
+
+    /* ESTILOS DEL PODIUM REAL NAVIDEÑO */
+    .podium-container {
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+      gap: 12px;
+      margin: 30px auto 25px auto;
+      width: 100%;
+      max-width: 580px;
+      padding-bottom: 4px;
+    }
+    .podium-step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex: 1;
+      max-width: 180px;
+      animation: popPodium 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) backwards;
+    }
+    .podium-step.step-1 { order: 2; animation-delay: 0.4s; }
+    .podium-step.step-2 { order: 1; animation-delay: 0.2s; }
+    .podium-step.step-3 { order: 3; animation-delay: 0.6s; }
+
+    @keyframes popPodium {
+      0% { opacity: 0; transform: translateY(50px) scale(0.9); }
+      100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .podium-character {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 8px;
+      width: 100%;
+    }
+    .podium-avatar-wrapper {
+      position: relative;
+      width: 68px;
+      height: 68px;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+      border: 3px solid #fff;
+    }
+    .step-1 .podium-avatar-wrapper {
+      width: 84px;
+      height: 84px;
+      border-color: var(--xmas-gold);
+      box-shadow: 0 0 20px rgba(248, 178, 41, 0.8);
+    }
+    .step-2 .podium-avatar-wrapper {
+      border-color: #e0e0e0;
+      box-shadow: 0 0 15px rgba(224, 224, 224, 0.6);
+    }
+    .step-3 .podium-avatar-wrapper {
+      border-color: #cd7f32;
+      box-shadow: 0 0 15px rgba(205, 127, 50, 0.6);
+    }
+    .podium-avatar {
+      font-size: 2.3rem;
+      user-select: none;
+    }
+    .step-1 .podium-avatar { font-size: 3rem; }
+
+    .podium-crown {
+      position: absolute;
+      top: -22px;
+      font-size: 1.8rem;
+      filter: drop-shadow(0 2px 5px rgba(0,0,0,0.6));
+      animation: floatCrown 2s ease-in-out infinite alternate;
+    }
+    @keyframes floatCrown {
+      0% { transform: translateY(0) rotate(-4deg); }
+      100% { transform: translateY(-5px) rotate(4deg); }
+    }
+
+    .podium-player-name {
+      font-weight: 800;
+      font-size: 1.05rem;
+      margin-top: 6px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+    }
+    .step-1 .podium-player-name {
+      font-size: 1.25rem;
+      color: var(--xmas-gold);
+    }
+    .podium-score {
+      font-size: 0.95rem;
+      font-weight: 800;
+      background: rgba(0, 0, 0, 0.55);
+      padding: 2px 10px;
+      border-radius: 12px;
+      color: var(--xmas-gold);
+      margin-top: 2px;
+      border: 1px solid rgba(248, 178, 41, 0.4);
+    }
+    .step-1 .podium-score {
+      font-size: 1.05rem;
+      border-color: var(--xmas-gold);
+    }
+
+    /* Pedestales 3D navideños */
+    .podium-block {
+      width: 100%;
+      border-radius: 16px 16px 6px 6px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding-top: 10px;
+      font-family: 'Mountains of Christmas', cursive;
+      color: #fff;
+      font-weight: 700;
+      position: relative;
+      border-top: 5px solid rgba(255, 255, 255, 0.7);
+      box-shadow: inset 0 6px 10px rgba(255,255,255,0.3), 0 10px 25px rgba(0,0,0,0.5);
+    }
+    .podium-block::after {
+      content: '❄️';
+      position: absolute;
+      top: -12px;
+      font-size: 1rem;
+      opacity: 0.9;
+    }
+    .step-1 .podium-block {
+      height: 160px;
+      background: linear-gradient(180deg, #f8b229 0%, #b87805 100%);
+      border-top-color: #fff6db;
+    }
+    .step-2 .podium-block {
+      height: 120px;
+      background: linear-gradient(180deg, #bdc3c7 0%, #7f8c8d 100%);
+      border-top-color: #f1f2f6;
+    }
+    .step-3 .podium-block {
+      height: 90px;
+      background: linear-gradient(180deg, #d35400 0%, #a04000 100%);
+      border-top-color: #edbb99;
+    }
+
+    .podium-rank-num {
+      font-size: 3.5rem;
+      line-height: 1;
+      text-shadow: 0 3px 6px rgba(0,0,0,0.5);
+    }
+    .step-1 .podium-rank-num {
+      font-size: 4.5rem;
+      color: #fff;
+    }
+
+    /* Lista restante (4º puesto en adelante) */
+    .rest-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--xmas-gold);
+      margin: 20px 0 10px 0;
+      text-align: left;
+      border-bottom: 1px dashed rgba(248, 178, 41, 0.4);
+      padding-bottom: 6px;
+    }
+    .rest-item {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      background: rgba(0,0,0,0.3);
-      padding: 14px 18px;
-      border-radius: 14px;
-      margin-bottom: 10px;
-      border-left: 6px solid var(--xmas-gold);
+      background: rgba(0,0,0,0.35);
+      border: 1px solid rgba(255,255,255,0.15);
+      padding: 12px 16px;
+      border-radius: 16px;
+      margin-bottom: 8px;
+    }
+    .rest-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .rest-rank {
+      font-weight: 800;
+      font-size: 1.1rem;
+      color: rgba(255,255,255,0.7);
+      width: 28px;
+      text-align: center;
+    }
+    .rest-avatar {
+      font-size: 1.8rem;
+    }
+    .rest-name {
+      font-weight: 700;
+      font-size: 1.1rem;
+    }
+    .rest-score {
+      font-size: 1.15rem;
+      color: var(--xmas-gold);
+      font-weight: 800;
     }
   </style>
 </head>
@@ -319,7 +509,7 @@
         🖥️ Modo Pantalla Central / Host (PC)
       </button>
       <p style="font-size: 0.8rem; margin-top: -6px; margin-bottom: 14px; opacity: 0.8;">
-        (Pulsa aquí en el PC o TV para moderar la gala y proyectar la ruleta)
+        (Pulsa aquí en el PC o TV para moderar la gala y ver la ruleta gigante)
       </p>
 
       <div style="display: flex; align-items: center; margin: 15px 0;">
@@ -348,11 +538,11 @@
       </div>
 
       <input type="text" id="player-name" placeholder="Tu nombre" maxlength="15" autocomplete="off">
-      <input type="text" id="room-input" placeholder="CÓDIGO DE SALA (Ej: 4281)" style="text-transform: uppercase;" autocomplete="off">
+      <input type="text" id="room-input" placeholder="CÓDIGO DE SALA (Ej: 8983)" style="text-transform: uppercase;" autocomplete="off">
       <button id="btn-join" class="btn btn-gold" onclick="joinRoom()">🎄 Unirme a la Partida</button>
     </div>
 
-    <!-- PANTALLA 2: LOBBY -->
+    <!-- PANTALLA 2: LOBBY DE ESPERA -->
     <div id="screen-lobby" class="card hidden">
       <h3 style="color: var(--xmas-gold); font-size: 1.6rem;">Sala de Espera 🎄</h3>
       <p style="font-size: 1.05rem; margin-top: 8px;">
@@ -368,9 +558,11 @@
         <button class="btn btn-gold" style="font-size: 1.3rem;" onclick="hostStartGame()">🎉 ¡Empezar la Gala Navideña!</button>
       </div>
 
-      <p id="guest-waiting-msg" class="hidden" style="font-style: italic; font-size: 1rem; opacity: 0.85;">
-        ¡Conectado! Esperando a que el PC inicie la gala...
-      </p>
+      <div id="guest-waiting-msg" class="hidden" style="margin-top: 15px; background: rgba(0,0,0,0.3); padding: 14px; border-radius: 16px;">
+        <div style="font-size: 2.2rem; margin-bottom: 6px;" id="guest-my-avatar">🎅</div>
+        <h4 style="color: var(--xmas-gold); font-size: 1.2rem;">¡Estás dentro, <span id="guest-my-name"></span>!</h4>
+        <p style="font-size: 0.95rem; margin-top: 4px; opacity: 0.9;">Mira la pantalla del PC. La partida comenzará cuando el Host pulse empezar.</p>
+      </div>
     </div>
 
     <!-- PANTALLA 3: RULETA -->
@@ -387,7 +579,7 @@
       </div>
 
       <div id="guest-roulette-box" class="hidden">
-        <p style="font-size: 1.1rem; margin-top: 10px;">👀 ¡Mira la ruleta en la pantalla central!</p>
+        <p style="font-size: 1.15rem; margin-top: 10px; color: var(--xmas-gold); font-weight:700;">👀 ¡Mira la ruleta en la pantalla del PC!</p>
       </div>
     </div>
 
@@ -396,7 +588,7 @@
       <div style="margin-bottom: 14px;">
         <span style="font-size: 3rem;" id="voted-avatar">🎁</span>
         <h3 id="voted-name" style="color:var(--xmas-gold); font-size: 1.8rem; margin-top: 4px;">---</h3>
-        <p style="font-size: 1rem; opacity: 0.9;">abriendo su regalo</p>
+        <p id="voted-subtitle" style="font-size: 1rem; opacity: 0.9;">abriendo su regalo</p>
       </div>
 
       <div id="vote-form" class="hidden">
@@ -449,12 +641,7 @@
 
       <div id="vote-feedback" class="hidden" style="padding: 16px 0;">
         <h4 style="font-size: 1.2rem; color: #55efc4;">¡Voto Registrado! 🎄</h4>
-        <p style="font-size: 0.95rem; margin-top: 6px; opacity:0.85;">Esperando al siguiente regalo...</p>
-      </div>
-
-      <div id="opener-notice" class="hidden" style="padding: 20px 0;">
-        <h4 style="font-size: 1.3rem; color: var(--xmas-gold);">¡Es tu momento! 🎁✨</h4>
-        <p style="font-size: 1rem; margin-top: 6px; opacity:0.9;">Muestra tu regalo a la familia. Te están puntuando.</p>
+        <p style="font-size: 0.95rem; margin-top: 6px; opacity:0.85;">Esperando a que todos terminen...</p>
       </div>
 
       <div id="host-vote-panel" class="hidden">
@@ -474,15 +661,23 @@
 
     <!-- PANTALLA 5: RESULTADOS -->
     <div id="screen-results" class="card hidden">
-      <h2 style="color:var(--xmas-gold); font-family:'Mountains of Christmas'; font-size:2.8rem;">
+      <h2 style="color:var(--xmas-gold); font-family:'Mountains of Christmas'; font-size:2.8rem; line-height:1.1;">
         🏆 Gran Podio Navideño
       </h2>
-      <p style="font-size: 1rem; margin-bottom: 20px;">¡Todos han abierto y puntuado sus regalos!</p>
+      <p style="font-size: 1rem; margin-bottom: 12px; opacity:0.9;">¡Todos han abierto y puntuado sus regalos!</p>
 
-      <div id="podium-list"></div>
+      <!-- PODIUM ILUSTRADO REAL -->
+      <div id="podium-area"></div>
 
-      <button class="btn btn-gold" style="margin-top: 20px;" onclick="shareWhatsApp()">
+      <!-- RESTO DE PARTICIPANTES (4º EN ADELANTE) -->
+      <div id="rest-ranking-area"></div>
+
+      <button class="btn btn-gold" style="margin-top: 25px;" onclick="shareWhatsApp()">
         📲 Compartir Resumen por WhatsApp
+      </button>
+
+      <button class="btn btn-red" style="margin-top: 12px; background: rgba(0,0,0,0.45); border: 1px solid var(--xmas-gold);" onclick="exitRoomAndReset()">
+        🚪 Salir de la Sala y Reiniciar App
       </button>
     </div>
   </div>
@@ -648,13 +843,13 @@
     }
     drawSnow();
 
-    // --- MOTOR DE RED: MQTT WSS PÚBLICO (BROKER EMQX WSS 443) ---
-    // Conexión libre sobre SSL estándar que NUNCA es bloqueada por móviles
+    // --- MOTOR DE RED MQTT OFICIAL (EMQX WSS) ---
     let client = null;
     let myAvatar = '🎅';
     let myName = '';
     let isHost = false;
     let roomCode = '';
+    let hostResponseReceived = false;
 
     let gameState = {
       players: [],
@@ -668,17 +863,17 @@
     let localRatings = { cat1: 5, cat2: 5, cat3: 5, cat4: 5 };
 
     function getTopic(code) {
-      return `xmas_secret_santa_room_${code}`;
+      return `ami_invis_navidad_2024_${code}`;
     }
 
     function initMqtt(code, onConnect) {
       if (client) {
-        try { client.end(); } catch(e){}
+        try { client.end(true); } catch(e){}
       }
-      // Conexión segura por WSS a broker global gratuito sin autenticación
       client = mqtt.connect('wss://broker.emqx.io:8084/mqtt', {
-        clientId: 'xmas_' + Math.random().toString(16).substring(2, 10),
+        clientId: 'xmas_' + Math.random().toString(16).substr(2, 8),
         clean: true,
+        connectTimeout: 5000,
         reconnectPeriod: 2000
       });
 
@@ -694,10 +889,6 @@
           handleIncomingMessage(msg);
         } catch(e){}
       });
-
-      client.on('error', () => {
-        showToast("⚠️ Reintentando red...");
-      });
     }
 
     function publish(type, data) {
@@ -708,9 +899,8 @@
     }
 
     function handleIncomingMessage(msg) {
-      // Si soy el Host PC
       if (isHost) {
-        if (msg.type === 'JOIN_REQ') {
+        if (msg.type === 'REQ_JOIN') {
           const existing = gameState.players.find(p => p.name === msg.data.name);
           if (!existing) {
             gameState.players.push(msg.data);
@@ -739,10 +929,9 @@
         }
       }
 
-      // Si soy el Jugador (Móvil)
       if (!isHost) {
         if (msg.type === 'SYNC') {
-          setupGameView();
+          hostResponseReceived = true;
           gameState = msg.data;
           renderState();
         } else if (msg.type === 'SPIN_RUN') {
@@ -766,9 +955,21 @@
 
     function clearSession() {
       localStorage.removeItem('xmas_session');
+      if (roomCode) {
+        localStorage.removeItem('xmas_host_state_' + roomCode);
+      }
       document.getElementById('reconnect-banner').classList.add('hidden');
       document.getElementById('player-name').value = '';
       document.getElementById('room-input').value = '';
+    }
+
+    function exitRoomAndReset() {
+      playClickBell();
+      clearSession();
+      if (client) {
+        try { client.end(true); } catch(e){}
+      }
+      location.reload();
     }
 
     function checkPreviousSession() {
@@ -863,18 +1064,31 @@
       myName = name;
       isHost = false;
       roomCode = code;
+      hostResponseReceived = false;
       saveSession();
 
       const btn = document.getElementById('btn-join');
       btn.disabled = true;
-      btn.innerText = "Entrando a la sala...";
+      btn.innerText = "Entrando...";
+
+      setupGameView();
+      document.getElementById('guest-my-name').innerText = myName;
+      document.getElementById('guest-my-avatar').innerText = myAvatar;
+      document.getElementById('screen-lobby').classList.remove('hidden');
 
       initMqtt(roomCode, () => {
         btn.disabled = false;
         btn.innerText = "🎄 Unirme a la Partida";
-        // Enviar mensaje de unión al Host
-        publish('JOIN_REQ', { name: myName, avatar: myAvatar });
-        setupGameView();
+        publish('REQ_JOIN', { name: myName, avatar: myAvatar });
+
+        setTimeout(() => {
+          if (!hostResponseReceived) {
+            alert(`⚠️ No se ha detectado el PC en la sala ${roomCode}.\n\nRevisa bien que hayas escrito el código exacto que aparece en la pantalla del ordenador.`);
+            document.getElementById('screen-auth').classList.remove('hidden');
+            document.getElementById('screen-lobby').classList.add('hidden');
+            document.getElementById('room-badge').classList.add('hidden');
+          }
+        }, 5000);
       });
     }
 
@@ -919,27 +1133,24 @@
         document.getElementById('voted-name').innerText = gameState.currentOpener.name;
         document.getElementById('voted-avatar').innerText = gameState.currentOpener.avatar;
 
+        const isMeOpener = (myName === gameState.currentOpener.name);
+        document.getElementById('voted-subtitle').innerText = isMeOpener 
+          ? '¡Te toca abrir tu regalo! Valora también la experiencia:' 
+          : 'abriendo su regalo';
+
         if (isHost) {
           document.getElementById('vote-form').classList.add('hidden');
           document.getElementById('vote-feedback').classList.add('hidden');
-          document.getElementById('opener-notice').classList.add('hidden');
           renderVoteTracker();
         } else {
-          const isMeOpener = (myName === gameState.currentOpener.name);
           const alreadyVoted = gameState.votedInCurrentRound.includes(myName);
 
-          if (isMeOpener) {
-            document.getElementById('vote-form').classList.add('hidden');
-            document.getElementById('vote-feedback').classList.add('hidden');
-            document.getElementById('opener-notice').classList.remove('hidden');
-          } else if (alreadyVoted) {
+          if (alreadyVoted) {
             document.getElementById('vote-form').classList.add('hidden');
             document.getElementById('vote-feedback').classList.remove('hidden');
-            document.getElementById('opener-notice').classList.add('hidden');
           } else {
             document.getElementById('vote-form').classList.remove('hidden');
             document.getElementById('vote-feedback').classList.add('hidden');
-            document.getElementById('opener-notice').classList.add('hidden');
           }
         }
       }
@@ -951,8 +1162,7 @@
 
     function renderVoteTracker() {
       const votersList = document.getElementById('vote-tracker-list');
-      const openerName = gameState.currentOpener ? gameState.currentOpener.name : '';
-      const eligibleVoters = gameState.players.filter(p => p.name !== openerName);
+      const eligibleVoters = gameState.players;
       const totalEligible = eligibleVoters.length;
       const countVoted = gameState.votedInCurrentRound.length;
 
@@ -1101,9 +1311,10 @@
       document.getElementById('vote-feedback').classList.remove('hidden');
     }
 
+    // --- RENDERIZADO DEL PODIUM REAL Y LA LISTA ---
     function renderPodium() {
       playFanfare();
-      const list = document.getElementById('podium-list');
+
       const ranked = gameState.players.map(p => {
         const sc = gameState.scores[p.name] || {};
         const all = [...(sc.cat1||[]), ...(sc.cat2||[]), ...(sc.cat3||[]), ...(sc.cat4||[])];
@@ -1111,18 +1322,100 @@
         return { ...p, avg: parseFloat(avg) };
       }).sort((a,b) => b.avg - a.avg);
 
-      const medals = ['🥇', '🥈', '🥉'];
-      list.innerHTML = ranked.map((p, i) => `
-        <div class="podium-item">
-          <div>
-            <span style="font-size:1.4rem;">${medals[i] || '🎖️'}</span>
-            <strong style="font-size:1.15rem; margin-left: 6px;">${p.avatar} ${p.name}</strong>
+      const top3 = ranked.slice(0, 3);
+      const rest = ranked.slice(3);
+
+      const podiumArea = document.getElementById('podium-area');
+      const restArea = document.getElementById('rest-ranking-area');
+
+      // 1. Construir el Podium 3D con personajes encima
+      let podiumHTML = `<div class="podium-container">`;
+
+      // Segundo Puesto (Plata)
+      if (top3[1]) {
+        podiumHTML += `
+          <div class="podium-step step-2">
+            <div class="podium-character">
+              <div class="podium-avatar-wrapper">
+                <span class="podium-avatar">${top3[1].avatar}</span>
+              </div>
+              <span class="podium-player-name">${top3[1].name}</span>
+              <span class="podium-score">★ ${top3[1].avg}</span>
+            </div>
+            <div class="podium-block">
+              <span class="podium-rank-num">2</span>
+              <span style="font-size:0.85rem; letter-spacing:1px; opacity:0.9;">PLATA</span>
+            </div>
           </div>
-          <div style="font-size:1.25rem; color:var(--xmas-gold); font-weight:800;">
-            ${p.avg} ★
+        `;
+      }
+
+      // Primer Puesto (Oro con Corona)
+      if (top3[0]) {
+        podiumHTML += `
+          <div class="podium-step step-1">
+            <div class="podium-character">
+              <div class="podium-avatar-wrapper">
+                <span class="podium-crown">👑</span>
+                <span class="podium-avatar">${top3[0].avatar}</span>
+              </div>
+              <span class="podium-player-name">${top3[0].name}</span>
+              <span class="podium-score">★ ${top3[0].avg}</span>
+            </div>
+            <div class="podium-block">
+              <span class="podium-rank-num">1</span>
+              <span style="font-size:0.9rem; letter-spacing:1px; color:#fff6db;">ORO</span>
+            </div>
           </div>
-        </div>
-      `).join('');
+        `;
+      }
+
+      // Tercer Puesto (Bronce)
+      if (top3[2]) {
+        podiumHTML += `
+          <div class="podium-step step-3">
+            <div class="podium-character">
+              <div class="podium-avatar-wrapper">
+                <span class="podium-avatar">${top3[2].avatar}</span>
+              </div>
+              <span class="podium-player-name">${top3[2].name}</span>
+              <span class="podium-score">★ ${top3[2].avg}</span>
+            </div>
+            <div class="podium-block">
+              <span class="podium-rank-num">3</span>
+              <span style="font-size:0.85rem; letter-spacing:1px; opacity:0.9;">BRONCE</span>
+            </div>
+          </div>
+        `;
+      }
+
+      podiumHTML += `</div>`;
+      podiumArea.innerHTML = podiumHTML;
+
+      // 2. Construir la lista para el 4º en adelante (con su propio icono y puesto)
+      if (rest.length > 0) {
+        let restHTML = `
+          <div class="rest-title">🎄 Menciones de Honor</div>
+          <div class="rest-list">
+        `;
+        rest.forEach((p, index) => {
+          const rank = index + 4;
+          restHTML += `
+            <div class="rest-item">
+              <div class="rest-left">
+                <span class="rest-rank">#${rank}</span>
+                <span class="rest-avatar">${p.avatar}</span>
+                <span class="rest-name">${p.name}</span>
+              </div>
+              <span class="rest-score">★ ${p.avg}</span>
+            </div>
+          `;
+        });
+        restHTML += `</div>`;
+        restArea.innerHTML = restHTML;
+      } else {
+        restArea.innerHTML = '';
+      }
     }
 
     function shareWhatsApp() {
